@@ -1,5 +1,7 @@
 # MaBooks
 
+<img src="Sources/MaBooks/Resources/AppIcon.png" width="112" alt="MaBooks 猫咪读书图标" />
+
 一个以 SwiftUI 构建的 macOS 阅读工作台。将微信读书电子书架、热门划线和段落想法放在原生窗口里，全文通过内嵌官方网页版阅读。
 
 **当前阶段：0.2 皮肤与阅读工作台。** 已实现官方 Gateway 适配与离线示例；尚未使用真实账号完成接口和扫码登录验收。这是独立开源项目，与腾讯无隶属关系。
@@ -43,6 +45,8 @@ open dist/MaBooks.app
 ```
 
 脚本生成本机架构的 `.app` 并进行 ad-hoc 签名。它不是经过 Apple 公证的发行版，不会自动安装到 Applications。GitHub Actions 提供构建 ZIP 作为 CI artifact；正式签名、公证及 Universal Binary 是后续工作。
+
+图标源图位于 `Sources/MaBooks/Resources/AppIcon.png`。打包时使用 macOS 自带的 `sips` 和 `iconutil` 生成包含 16–1024 像素规格的 `MaBooks.icns`，并用于 Finder 与 Dock，详见 [图标说明](docs/ICON.md)。
 
 ## 连接微信读书
 

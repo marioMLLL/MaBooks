@@ -12,6 +12,8 @@ for task_resource_bundle in "$task_bin_dir"/*.bundle; do
 done
 test -s "$task_app_dir/Contents/Resources/MaBooks_MaBooks.bundle/sakura-reading.png"
 cp packaging/Info.plist "$task_app_dir/Contents/Info.plist"
+bash scripts/make-icon.sh
+cp dist/MaBooks.icns "$task_app_dir/Contents/Resources/MaBooks.icns"
 codesign --force --sign - "$task_app_dir"
 codesign --verify --deep --strict "$task_app_dir"
 echo "Built: $task_app_dir"

@@ -10,6 +10,9 @@ struct MaBooksApp: App {
                 .frame(minWidth: 1000, minHeight: 660)
                 .onAppear {
                     NSApplication.shared.setActivationPolicy(.regular)
+                    if let icon = Self.applicationIcon {
+                        NSApplication.shared.applicationIconImage = icon
+                    }
                     NSApplication.shared.activate(ignoringOtherApps: true)
                 }
         }
@@ -27,5 +30,11 @@ struct MaBooksApp: App {
                 Button("显示／隐藏想法") { state.showsComments.toggle() }.keyboardShortcut("i", modifiers: [.command, .shift])
             }
         }
+    }
+
+    private static var applicationIcon: NSImage? {
+        if let url = Bundle.main.url(forResource: "MaBooks", withExtension: "icns"),
+           let icon = NSImage(contentsOf: url) { return icon }
+        return NSImage(contentsOf: Bundle.module.bundleURL.appendingPathComponent("AppIcon.png"))
     }
 }
