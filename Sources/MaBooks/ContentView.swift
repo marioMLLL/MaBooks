@@ -31,7 +31,7 @@ struct ContentView: View {
                                 SkinIconButton(title: "切换皮肤", symbol: "paintpalette") { showsSkins = true }
                                 SkinIconButton(title: "账号设置", symbol: "person.crop.circle") { state.showsSettings = true }
                             }.padding(16).background(palette.paper.opacity(0.94))
-                            WebReader(session: state.web)
+                            WebReader(session: state.web, state: state)
                         } else { reader }
                     }.frame(minWidth: 400, maxWidth: .infinity, maxHeight: .infinity)
                     if state.showsComments && !state.showsWeb {
@@ -61,6 +61,7 @@ struct ContentView: View {
         }
         .sheet(isPresented: $state.showsSettings) { AccountSettings(state: state).environment(\.skinPalette, palette) }
         .sheet(isPresented: $state.showsDeletedBooks) { deletedBooksSheet }
+        .sheet(isPresented: $state.showsBookSearch) { readingCandidatesSheet }
         .alert("提示", isPresented: Binding(get: { state.notice != nil }, set: { if !$0 { state.notice = nil } })) {
             Button("好") { state.notice = nil }
         } message: { Text(state.notice ?? "") }
@@ -314,6 +315,37 @@ struct ContentView: View {
         .padding(24).frame(width: 520, height: 400)
         .foregroundStyle(palette.ink).background(palette.paper)
         .environment(\.skinPalette, palette)
+    }
+
+    private var readingCandidatesSheet: some View {
+        VStack(alignment: .leading, spacing: 18) {
+            HStack {
+                Text("在书城查找 · \(state.selectedBook.title)").font(.title2).lineLimit(1)
+                Spacer()
+                Button("关闭") { state.showsBookSearch = false }
+            }
+            Text("请核对书名、作者和版本。同名书的正文、划线和阅读位置可能不同；选择后打开该候选的官方阅读链接。").font(.callout).foregroundStyle(palette.muted)
+            if state.searchingBooks { ProgressView("正在查询官方书城…") }
+            else if let error = state.searchError { Text(error).foregroundStyle(.red) }
+            else if state.readingCandidates.isEmpty { Text("这个分类没有返回候选。可关闭后切换“电子书”或“网文小说”再查找。") }
+            else {
+                List(state.readingCandidates) { book in
+                    HStack {
+                        VStack(alignment: .leading) {
+                            Text(book.title)
+                            Text(book.author).font(.caption).foregroundStyle(palette.muted)
+                            if let publisher = book.publisher { Text(publisher).font(.caption).foregroundStyle(palette.muted) }
+                        }
+                        Spacer()
+                        Button("打开此版本") {
+                            state.showsBookSearch = false
+                            state.open(book)
+                        }.disabled(book.readerURL == nil)
+                    }.listRowBackground(palette.paper)
+                }.scrollContentBackground(.hidden)
+            }
+        }.padding(24).frame(width: 650, height: 440)
+            .foregroundStyle(palette.ink).background(palette.paper).environment(\.skinPalette, palette)
     }
 }
 

@@ -89,6 +89,39 @@ public final class GatewayClient: @unchecked Sendable {
         }
     }
 
+    public func fetchBookInfo(bookID: String) async throws -> Book {
+        let payload = try await request("/book/info", parameters: ["bookId": bookID])
+        let book = try mapBook(payload)
+        guard book.id == bookID else { throw GatewayError.malformed }
+        return book
+    }
+
+    public func searchBooks(title: String, novels: Bool) async throws -> [Book] {
+        let payload = try await request("/store/search", parameters: ["keyword": title, "scope": novels ? 16 : 10])
+        guard let groups = payload["results"] as? [[String: Any]] else { throw GatewayError.malformed }
+        var books: [Book] = []
+        var seen = Set<String>()
+        for group in groups {
+            guard let rows = group["books"] as? [[String: Any]] else { continue }
+            for row in rows {
+                guard let info = row["bookInfo"] as? [String: Any] else { throw GatewayError.malformed }
+                let book = try mapBook(info)
+                if seen.insert(book.id).inserted { books.append(book) }
+            }
+        }
+        return books
+    }
+
+    private func mapBook(_ row: [String: Any]) throws -> Book {
+        guard let id = string(row["bookId"]), !id.isEmpty,
+              let title = row["title"] as? String, !title.isEmpty else { throw GatewayError.malformed }
+        let reader = (row["readerLink"] as? String).flatMap(URL.init(string:))
+        let cover = (row["cover"] as? String).flatMap(URL.init(string:))
+        return Book(id: id, title: title, author: row["author"] as? String ?? "未知作者", source: .weread,
+                    readerURL: OfficialReaderURL.validated(reader), coverURL: cover?.scheme == "https" ? cover : nil,
+                    publisher: row["publisher"] as? String)
+    }
+
     public func fetchComments(anchor: ParagraphAnchor, cursor: CommentCursor? = nil) async throws -> CommentPage {
         guard !anchor.bookID.isEmpty, !anchor.range.isEmpty else { throw GatewayError.unsupportedAnchor }
         let selection: [String: Any] = ["range": anchor.range, "count": 20,

@@ -35,3 +35,11 @@ The app SHALL provide a persistent WebKit view of the official website and accep
 #### Scenario: Book has no reader link
 - **WHEN** the selected book lacks an official HTTPS readerLink
 - **THEN** the app SHALL offer the official homepage without inventing a book URL
+
+#### Scenario: Read a shelf entry
+- **WHEN** a user selects a WeRead shelf book
+- **THEN** the app SHALL open its official reader inside the app, refresh metadata using the official book info endpoint, and keep highlights available through an explicit control
+
+#### Scenario: Recover an unavailable reader link
+- **WHEN** the official reader reports that the book cannot be opened
+- **THEN** the app SHALL offer official ebook and web-novel catalog searches, show candidate title and author for user confirmation, and open only a returned official reader link without silently choosing a different edition
