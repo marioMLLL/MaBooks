@@ -43,3 +43,7 @@ The app SHALL provide a persistent WebKit view of the official website and accep
 #### Scenario: Recover an unavailable reader link
 - **WHEN** the official reader reports that the book cannot be opened
 - **THEN** the app SHALL offer official ebook and web-novel catalog searches, show candidate title and author for user confirmation, and open only a returned official reader link without silently choosing a different edition
+
+#### Scenario: Read the official webpage in full screen
+- **WHEN** the user activates full-screen reading using its button or Control-Command-F
+- **THEN** the app SHALL enter native window full screen, hide the app sidebar, toolbars and decorations, preserve the existing web session and page, and provide an exit control that restores the normal layout

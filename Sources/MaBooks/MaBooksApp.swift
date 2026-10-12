@@ -35,6 +35,8 @@ struct MaBooksApp: App {
                 Button("账号设置…") { state.showsSettings = true }.keyboardShortcut(",")
             }
             CommandMenu("阅读") {
+                Button("进入／退出全屏阅读") { state.web.toggleFullScreen() }
+                    .keyboardShortcut("f", modifiers: [.control, .command])
                 Button("打开微信读书") { state.showOfficialReader() }.keyboardShortcut("w", modifiers: [.command, .shift])
                 Button("显示／隐藏想法") { state.showsComments.toggle() }.keyboardShortcut("i", modifiers: [.command, .shift])
             }

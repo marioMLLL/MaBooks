@@ -14,24 +14,26 @@ struct ContentView: View {
     @State private var showsSkins = false
     @State private var sidebarTab: SidebarTab = .shelf
     @State private var jumpTarget: String?
+    @State private var windowIsFullScreen = false
     private var palette: SkinPalette { SkinPalette(skin: skin, theme: theme, systemDark: systemScheme == .dark) }
     private var usesPagination: Bool { state.selectedBook.source != .weread && layout != .scroll }
+    private var webFullScreen: Bool { state.showsWeb && windowIsFullScreen }
 
     var body: some View {
         ZStack {
-            SkinBackdrop(palette: palette, decorated: decorated)
+            SkinBackdrop(palette: palette, decorated: decorated && !webFullScreen)
             VStack(spacing: 12) {
                 HSplitView {
-                    if layout != .focus || state.showsWeb { sidebar.frame(minWidth: 210, idealWidth: 235, maxWidth: 270) }
+                    if !webFullScreen && (layout != .focus || state.showsWeb) { sidebar.frame(minWidth: 210, idealWidth: 235, maxWidth: 270) }
                     VStack(spacing: 0) {
                         if state.showsWeb {
-                            HStack {
+                            if !webFullScreen { HStack {
                                 Text("MaBooks · 微信读书").font(.headline)
                                 Spacer()
                                 SkinIconButton(title: "切换皮肤", symbol: "paintpalette") { showsSkins = true }
                                 SkinIconButton(title: "账号设置", symbol: "person.crop.circle") { state.showsSettings = true }
-                            }.padding(16).background(palette.paper.opacity(0.94))
-                            WebReader(session: state.web, state: state)
+                            }.padding(16).background(palette.paper.opacity(0.94)) }
+                            WebReader(session: state.web, state: state, fullScreen: webFullScreen)
                         } else { reader }
                     }.frame(minWidth: 400, maxWidth: .infinity, maxHeight: .infinity)
                     if state.showsComments && !state.showsWeb {
@@ -39,20 +41,31 @@ struct ContentView: View {
                     }
                 }
                 .background(palette.paper.opacity(0.20))
-                .clipShape(RoundedRectangle(cornerRadius: 20))
-                .overlay(RoundedRectangle(cornerRadius: 20).stroke(.white.opacity(palette.dark ? 0.07 : 0.45)))
+                .clipShape(RoundedRectangle(cornerRadius: webFullScreen ? 0 : 20))
+                .overlay(RoundedRectangle(cornerRadius: webFullScreen ? 0 : 20).stroke(.white.opacity(webFullScreen ? 0 : palette.dark ? 0.07 : 0.45)))
                 .shadow(color: palette.ink.opacity(0.09), radius: 18, y: 8)
-                HStack {
+                if !webFullScreen { HStack {
                     Text("MaBooks").font(.system(size: 10, weight: .medium)).tracking(3)
                     Spacer()
                     Text(skin.subtitle).font(.system(size: 10, design: .serif)).tracking(2)
-                }.foregroundStyle(palette.ink.opacity(0.7)).padding(.horizontal, 14)
-            }.padding(.horizontal, 20).padding(.top, 32).padding(.bottom, decorated ? 48 : 16)
+                }.foregroundStyle(palette.ink.opacity(0.7)).padding(.horizontal, 14) }
+            }.padding(.horizontal, webFullScreen ? 0 : 20).padding(.top, webFullScreen ? 0 : 32).padding(.bottom, webFullScreen ? 0 : decorated ? 48 : 16)
         }
         .foregroundStyle(palette.ink).environment(\.skinPalette, palette).tint(palette.accent)
+        .ignoresSafeArea(.container, edges: webFullScreen ? .all : [])
         .preferredColorScheme(theme == .system ? nil : palette.dark ? .dark : .light)
         .onAppear {
             if paginationVersion == 0 { layout = .paged; paginationVersion = 1 }
+        }
+        .onReceive(NotificationCenter.default.publisher(for: NSWindow.didEnterFullScreenNotification)) { notification in
+            if let window = notification.object as? NSWindow, window == state.web.view.window || window.title == "MaBooks" {
+                windowIsFullScreen = true
+            }
+        }
+        .onReceive(NotificationCenter.default.publisher(for: NSWindow.didExitFullScreenNotification)) { notification in
+            if let window = notification.object as? NSWindow, window == state.web.view.window || window.title == "MaBooks" {
+                windowIsFullScreen = false
+            }
         }
         .sheet(isPresented: $showsSkins) {
             SkinPicker(skin: $skin, decorated: $decorated, theme: $theme)
