@@ -10,4 +10,4 @@
 ## 3. Delivery
 - [x] 3.1 Update documentation and verify existing tests / release packaging
 - [x] 3.2 Verify switching, persistence and readability in the packaged native app
-- [ ] 3.3 Publish changes to the renamed public repository
+- [x] 3.3 Publish changes to the renamed public repository
