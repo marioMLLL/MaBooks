@@ -9,6 +9,7 @@ struct ContentView: View {
     @AppStorage("reader.layout") private var layout: ReaderLayout = .paged
     @AppStorage("reader.paginationVersion") private var paginationVersion = 0
     @AppStorage("reader.fontSize") private var fontSize = 20.0
+    @AppStorage("reader.sidebarVisible") private var sidebarVisible = true
     @Environment(\.colorScheme) private var systemScheme
     @State private var showsAppearance = false
     @State private var showsSkins = false
@@ -18,16 +19,18 @@ struct ContentView: View {
     private var palette: SkinPalette { SkinPalette(skin: skin, theme: theme, systemDark: systemScheme == .dark) }
     private var usesPagination: Bool { state.selectedBook.source != .weread && layout != .scroll }
     private var webFullScreen: Bool { state.showsWeb && windowIsFullScreen }
+    private var showsSidebar: Bool { sidebarVisible && (layout != .focus || state.showsWeb) }
 
     var body: some View {
         ZStack {
             SkinBackdrop(palette: palette, decorated: decorated)
             VStack(spacing: 12) {
                 HSplitView {
-                    if layout != .focus || state.showsWeb { sidebar.frame(minWidth: 210, idealWidth: 235, maxWidth: 270) }
+                    if showsSidebar { sidebar.frame(minWidth: 210, idealWidth: 235, maxWidth: 270) }
                     VStack(spacing: 0) {
                         if state.showsWeb {
                             HStack {
+                                if !showsSidebar { sidebarToggle }
                                 Text("MaBooks · 微信读书").font(.headline)
                                 Spacer()
                                 SkinIconButton(title: "切换皮肤", symbol: "paintpalette") { showsSkins = true }
@@ -53,6 +56,7 @@ struct ContentView: View {
         }
         .foregroundStyle(palette.ink).environment(\.skinPalette, palette).tint(palette.accent)
         .preferredColorScheme(theme == .system ? nil : palette.dark ? .dark : .light)
+        .focusedSceneValue(\.toggleReaderSidebar, toggleSidebar)
         .onAppear {
             if paginationVersion == 0 { layout = .paged; paginationVersion = 1 }
         }
@@ -84,6 +88,8 @@ struct ContentView: View {
             HStack(alignment: .firstTextBaseline, spacing: 8) {
                 Text("MaBooks").font(.system(size: 29, weight: .medium, design: .serif))
                 Image(systemName: skin.symbol).font(.system(size: 19)).foregroundStyle(palette.accent.opacity(0.8))
+                Spacer(minLength: 0)
+                sidebarToggle
             }.padding(.top, 27).padding(.horizontal, 22)
             Text("阅读让心靠近一点").font(.system(size: 10)).tracking(4)
                 .foregroundStyle(palette.muted).padding(.horizontal, 24).padding(.top, 7).padding(.bottom, 24)
@@ -221,6 +227,7 @@ struct ContentView: View {
 
     private var readerHeader: some View {
         HStack(spacing: 14) {
+            if !showsSidebar { sidebarToggle }
             BookCover(book: state.selectedBook, width: 42, height: 58)
             VStack(alignment: .leading, spacing: 7) {
                 Text(state.selectedBook.title).font(.system(size: 20, weight: .medium, design: .serif)).lineLimit(1)
@@ -232,12 +239,26 @@ struct ContentView: View {
                 SkinIconButton(title: "删除本地书（可在最近删除恢复）", symbol: "trash") { state.deleteLocalBook(state.selectedBook) }
                     .disabled(state.libraryBusy)
             }
-            if layout == .focus { SkinIconButton(title: "退出专注", symbol: "sidebar.left") { layout = .scroll } }
             SkinIconButton(title: "段落想法", symbol: "text.bubble", selected: state.showsComments) { state.showsComments.toggle() }
             SkinIconButton(title: "阅读设置", symbol: "textformat.size") { showsAppearance.toggle() }.popover(isPresented: $showsAppearance) { appearance }
             SkinIconButton(title: "切换皮肤", symbol: "paintpalette") { showsSkins = true }
             if state.selectedBook.source == .weread { SkinIconButton(title: "官方网页阅读", symbol: "globe") { state.showOfficialReader(for: state.selectedBook) } }
         }.padding(.horizontal, 24).padding(.vertical, 22)
+    }
+
+    private var sidebarToggle: some View {
+        SkinIconButton(title: showsSidebar ? "收起侧边栏（⌘⌥S）" : "展开侧边栏（⌘⌥S）", symbol: "sidebar.left", selected: showsSidebar) {
+            toggleSidebar()
+        }
+    }
+
+    private func toggleSidebar() {
+        if !showsSidebar {
+            if layout == .focus && !state.showsWeb { layout = .paged }
+            sidebarVisible = true
+        } else {
+            sidebarVisible = false
+        }
     }
 
     private var readerFooter: some View {
@@ -362,3 +383,14 @@ struct ContentView: View {
 }
 
 private enum SidebarTab { case shelf, paragraphs }
+
+private struct ToggleReaderSidebarKey: FocusedValueKey {
+    typealias Value = () -> Void
+}
+
+extension FocusedValues {
+    var toggleReaderSidebar: (() -> Void)? {
+        get { self[ToggleReaderSidebarKey.self] }
+        set { self[ToggleReaderSidebarKey.self] = newValue }
+    }
+}

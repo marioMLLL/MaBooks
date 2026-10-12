@@ -25,6 +25,17 @@ The reader SHALL open a side panel when a paragraph is selected, show its quoted
 - **WHEN** the user selects a sample paragraph
 - **THEN** its sample comments SHALL appear with an explicit sample label
 
+### Requirement: Collapsible navigation sidebar
+The app SHALL provide a sidebar toggle in the sidebar title row, an expand control in the reading header when collapsed, and a Command-Option-S shortcut for both local and official-web reading, including full screen.
+
+#### Scenario: Collapse and expand
+- **WHEN** the user toggles the sidebar
+- **THEN** the sidebar SHALL collapse or expand without reloading the web page or changing the selected book, the expanded/collapsed preference SHALL persist, and the reading area SHALL use the available width
+
+#### Scenario: Expand from native focus mode
+- **WHEN** the user expands the sidebar while native focus mode hides it
+- **THEN** the reader SHALL return to paginated mode and show the sidebar
+
 ### Requirement: Large local books and recoverable deletion
 The app SHALL support UTF-8 TXT imports up to 100 MiB, perform file reading and archive writing off the UI thread, and preserve legacy library data.
 
