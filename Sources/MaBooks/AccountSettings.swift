@@ -3,6 +3,7 @@ import SwiftUI
 struct AccountSettings: View {
     @ObservedObject var state: AppState
     @Environment(\.dismiss) private var dismiss
+    @Environment(\.skinPalette) private var palette
     @State private var key = ""
     @State private var message: String?
     @State private var clearing = false
@@ -43,6 +44,6 @@ struct AccountSettings: View {
             Text("网页版登录与 API 连接相互独立。断开 API 不会自动退出网页账号。")
                 .font(.caption).foregroundStyle(.secondary)
             if let message { Text(message).font(.caption).foregroundStyle(.secondary) }
-        }.padding(30).frame(width: 530)
+        }.padding(30).frame(width: 530).foregroundStyle(palette.ink).background(palette.paper).tint(palette.accent)
     }
 }

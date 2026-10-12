@@ -27,6 +27,7 @@ public enum SampleLibrary {
         let authors = ["林间", "小舟", "慢读者"]
         let texts = ["我喜欢在读完一段以后再看大家的理解。", "留下的划线，也记录着当时关心的事情。", "同一段文字，隔一段时间再读会有新的感受。"]
         let index = Int(paragraph.id.split(separator: "-").last ?? "0") ?? 0
-        return [ReaderComment(id: "demo-\(paragraph.id)", author: authors[index % 3], text: texts[index % 3])]
+        return [ReaderComment(id: "demo-\(paragraph.id)-1", author: authors[index % 3], text: texts[index % 3]),
+                ReaderComment(id: "demo-\(paragraph.id)-2", author: authors[(index + 1) % 3], text: texts[(index + 1) % 3])]
     }
 }

@@ -17,8 +17,8 @@ jobs:
       - name: Package
         run: bash scripts/package-app.sh
       - name: Archive app
-        run: ditto -c -k --sequesterRsrc --keepParent dist/WeReadMac.app dist/WeReadMac.zip
+        run: ditto -c -k --sequesterRsrc --keepParent dist/MaBooks.app dist/MaBooks.zip
       - uses: actions/upload-artifact@v4
         with:
-          name: WeReadMac-arm64
-          path: dist/WeReadMac.zip
+          name: MaBooks-arm64
+          path: dist/MaBooks.zip

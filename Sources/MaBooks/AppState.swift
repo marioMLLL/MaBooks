@@ -121,6 +121,7 @@ final class AppState: ObservableObject {
     private func restoreLocation() {
         let id = UserDefaults.standard.string(forKey: "position.\(selectedBook.id)")
         if let paragraph = paragraphs.first(where: { $0.id == id }) { select(paragraph, reveal: false) }
+        else if selectedBook.source == .sample, let first = paragraphs.first { select(first, reveal: false) }
     }
 
     func select(_ paragraph: Paragraph, reveal: Bool = true) {

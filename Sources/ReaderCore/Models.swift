@@ -10,8 +10,10 @@ public struct Book: Identifiable, Hashable, Codable, Sendable {
     public var author: String
     public var source: BookSource
     public var readerURL: URL?
-    public init(id: String, title: String, author: String, source: BookSource, readerURL: URL? = nil) {
+    public var coverURL: URL?
+    public init(id: String, title: String, author: String, source: BookSource, readerURL: URL? = nil, coverURL: URL? = nil) {
         self.id = id; self.title = title; self.author = author; self.source = source; self.readerURL = readerURL
+        self.coverURL = coverURL
     }
 }
 

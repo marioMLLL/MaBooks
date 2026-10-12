@@ -2,18 +2,19 @@ import SwiftUI
 import AppKit
 
 @main
-struct WeReadMacApp: App {
+struct MaBooksApp: App {
     @StateObject private var state = AppState()
     var body: some Scene {
-        Window("阅窗 · WeRead Mac", id: "main") {
+        Window("MaBooks", id: "main") {
             ContentView(state: state)
-                .frame(minWidth: 880, minHeight: 620)
+                .frame(minWidth: 1000, minHeight: 660)
                 .onAppear {
                     NSApplication.shared.setActivationPolicy(.regular)
                     NSApplication.shared.activate(ignoringOtherApps: true)
                 }
         }
-        .defaultSize(width: 1180, height: 780)
+        .defaultSize(width: 1280, height: 820)
+        .windowStyle(.hiddenTitleBar)
         .commands {
             CommandGroup(replacing: .newItem) {
                 Button("导入 TXT…") { state.importText() }.keyboardShortcut("o")

@@ -29,3 +29,11 @@ import Testing
 @Test func emptyImportProducesNoSyntheticParagraph() {
     #expect(LocalBook.importing(text: "\n \n", title: "空书").paragraphs.isEmpty)
 }
+
+@Test func legacyLibraryBooksDecodeWithoutCoverMetadata() throws {
+    // This is the pre-MaBooks on-disk Book shape; adding covers must not break it.
+    let legacy = Data(#"{"id":"old-local","title":"旧书","author":"本地 TXT","source":"local"}"#.utf8)
+    let book = try JSONDecoder().decode(Book.self, from: legacy)
+    #expect(book.id == "old-local")
+    #expect(book.coverURL == nil)
+}

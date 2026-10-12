@@ -58,8 +58,9 @@ public final class GatewayClient: @unchecked Sendable {
         return try rows.map { row in
             guard let id = string(row["bookId"]), let title = row["title"] as? String else { throw GatewayError.malformed }
             let url = (row["readerLink"] as? String).flatMap(URL.init(string:))
+            let cover = (row["cover"] as? String).flatMap(URL.init(string:))
             return Book(id: id, title: title, author: row["author"] as? String ?? "未知作者", source: .weread,
-                        readerURL: OfficialReaderURL.validated(url))
+                        readerURL: OfficialReaderURL.validated(url), coverURL: cover?.scheme == "https" ? cover : nil)
         }
     }
 
