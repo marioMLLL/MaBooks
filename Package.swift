@@ -12,7 +12,10 @@ let package = Package(
     targets: [
         .target(name: "ReaderCore"),
         .target(name: "WeReadKit", dependencies: ["ReaderCore"]),
-        .executableTarget(name: "MaBooks", dependencies: ["ReaderCore", "WeReadKit"], resources: [.process("Resources")]),
+        .target(name: "ReaderLayoutKit", dependencies: ["ReaderCore"]),
+        .executableTarget(name: "MaBooks", dependencies: ["ReaderCore", "ReaderLayoutKit", "WeReadKit"], resources: [.process("Resources")]),
+        .testTarget(name: "ReaderLayoutKitTests", dependencies: ["ReaderLayoutKit", "ReaderCore"]),
+        .testTarget(name: "MaBooksTests", dependencies: ["MaBooks", "ReaderCore", "ReaderLayoutKit"]),
         .testTarget(name: "ReaderCoreTests", dependencies: ["ReaderCore"]),
         .testTarget(name: "WeReadKitTests", dependencies: ["WeReadKit", "ReaderCore"])
     ]

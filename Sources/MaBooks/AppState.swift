@@ -7,6 +7,9 @@ import WeReadKit
 @MainActor
 final class AppState: ObservableObject {
     @Published var localBooks: [LocalBook] = []
+    @Published var deletedBooks: [LocalBook] = []
+    @Published var libraryBusy = false
+    @Published var showsDeletedBooks = false
     @Published var shelf: [Book] = []
     @Published var selectedBook = SampleLibrary.book
     @Published var paragraphs = SampleLibrary.paragraphs
@@ -25,6 +28,9 @@ final class AppState: ObservableObject {
     @Published var showsSettings = false
     @Published var showsComments = true
     @Published var page = 0
+    @Published var pageRanges: [NSRange] = []
+    @Published var readingOffset = 0
+    private(set) var readingDocument = ReadingDocument(paragraphs: SampleLibrary.paragraphs)
     let web = WebSession()
     private var client: GatewayClient?
     private var libraryStore: LibraryStore?
@@ -34,16 +40,23 @@ final class AppState: ObservableObject {
     private var commentTask: Task<Void, Never>?
 
     var books: [Book] { [SampleLibrary.book] + localBooks.map(\.book) }
-    var pageCount: Int { max(1, (paragraphs.count + 3) / 4) }
+    var pageCount: Int { max(1, pageRanges.count) }
 
-    init() {
+    init(libraryStore suppliedStore: LibraryStore? = nil, loadCredential: Bool = true) {
         do {
-            let store = try LibraryStore()
+            let store = try suppliedStore ?? LibraryStore()
             libraryStore = store
-            localBooks = try store.load()
+            libraryBusy = true
+            Task {
+                defer { libraryBusy = false }
+                do {
+                    let archive = try await Task.detached(priority: .userInitiated) { try store.load() }.value
+                    localBooks = archive.books; deletedBooks = archive.deletedBooks
+                } catch { notice = "本地书库读取失败：\(error.localizedDescription)" }
+            }
         } catch { notice = "本地书库读取失败：\(error.localizedDescription)" }
         do {
-            if let key = try KeychainStore.read(), !key.isEmpty { client = GatewayClient(apiKey: key); hasKey = true }
+            if loadCredential, let key = try KeychainStore.read(), !key.isEmpty { client = GatewayClient(apiKey: key); hasKey = true }
         } catch { notice = error.localizedDescription }
         restoreLocation()
     }
@@ -89,6 +102,7 @@ final class AppState: ObservableObject {
         guard let client else { showsSettings = true; return }
         let token = UUID(); bookRequest = token
         selectedBook = book; paragraphs = []; resetComments(); page = 0
+        pageRanges = []; readingOffset = 0
         showsWeb = false; loadingBook = true; bookError = nil
         Task {
             do {
@@ -97,6 +111,7 @@ final class AppState: ObservableObject {
                 // Server range IDs can repeat; SwiftUI requires unique paragraph identities.
                 var seen = Set<String>()
                 paragraphs = result.filter { seen.insert($0.id).inserted }
+                readingDocument = ReadingDocument(paragraphs: paragraphs)
                 restoreLocation()
             } catch {
                 guard bookRequest == token else { return }
@@ -110,7 +125,10 @@ final class AppState: ObservableObject {
         bookRequest = UUID(); loadingBook = false; bookError = nil
         selectedBook = book
         paragraphs = book.source == .sample ? SampleLibrary.paragraphs : localBooks.first { $0.book.id == book.id }?.paragraphs ?? []
+        readingDocument = ReadingDocument(paragraphs: paragraphs)
+        pageRanges = []; readingOffset = 0
         showsWeb = false; resetComments(); page = 0; restoreLocation()
+        if book.source == .local { showsComments = false }
     }
 
     private func resetComments() {
@@ -120,7 +138,11 @@ final class AppState: ObservableObject {
 
     private func restoreLocation() {
         let id = UserDefaults.standard.string(forKey: "position.\(selectedBook.id)")
-        if let paragraph = paragraphs.first(where: { $0.id == id }) { select(paragraph, reveal: false) }
+        let offset = UserDefaults.standard.integer(forKey: "position.offset.\(selectedBook.id)")
+        if let paragraph = paragraphs.first(where: { $0.id == id }) {
+            select(paragraph, reveal: false)
+            readingOffset = readingDocument.offset(for: ReadingPosition(paragraphID: paragraph.id, utf16Offset: offset)) ?? 0
+        }
         else if selectedBook.source == .sample, let first = paragraphs.first { select(first, reveal: false) }
     }
 
@@ -129,8 +151,10 @@ final class AppState: ObservableObject {
         resetComments()
         selectedParagraph = paragraph
         if reveal { showsComments = true }
-        if let index = paragraphs.firstIndex(where: { $0.id == paragraph.id }) { page = index / 4 }
+        readingOffset = readingDocument.offset(for: ReadingPosition(paragraphID: paragraph.id)) ?? 0
+        page = ReadingDocument.pageIndex(containing: readingOffset, pages: pageRanges)
         UserDefaults.standard.set(paragraph.id, forKey: "position.\(selectedBook.id)")
+        UserDefaults.standard.set(0, forKey: "position.offset.\(selectedBook.id)")
         if selectedBook.source == .sample { comments = SampleLibrary.comments(for: paragraph) }
         else if paragraph.anchor != nil { loadComments() }
     }
@@ -157,8 +181,24 @@ final class AppState: ObservableObject {
 
     func navigatePage(_ offset: Int) {
         let newPage = min(max(page + offset, 0), pageCount - 1)
-        guard newPage != page, paragraphs.indices.contains(newPage * 4) else { return }
-        select(paragraphs[newPage * 4], reveal: false)
+        guard newPage != page, pageRanges.indices.contains(newPage) else { return }
+        let location = pageRanges[newPage].location
+        selectReadingOffset(location, reveal: false)
+    }
+
+    func selectReadingOffset(_ location: Int, reveal: Bool) {
+        guard let position = readingDocument.position(at: location),
+              let paragraph = paragraphs.first(where: { $0.id == position.paragraphID }) else { return }
+        select(paragraph, reveal: reveal)
+        page = ReadingDocument.pageIndex(containing: location, pages: pageRanges)
+        readingOffset = location
+        UserDefaults.standard.set(position.utf16Offset, forKey: "position.offset.\(selectedBook.id)")
+    }
+
+    func setPageRanges(_ ranges: [NSRange], bookID: String) {
+        guard selectedBook.id == bookID else { return }
+        pageRanges = ranges
+        page = ReadingDocument.pageIndex(containing: readingOffset, pages: ranges)
     }
 
     func showOfficialReader(for book: Book? = nil) {
@@ -167,22 +207,54 @@ final class AppState: ObservableObject {
     }
 
     func importText() {
+        guard !libraryBusy else { return }
         let panel = NSOpenPanel()
         panel.allowedContentTypes = [.plainText]; panel.allowsMultipleSelection = false
         guard panel.runModal() == .OK, let url = panel.url else { return }
-        do {
-            let granted = url.startAccessingSecurityScopedResource()
-            defer { if granted { url.stopAccessingSecurityScopedResource() } }
-            let size = try url.resourceValues(forKeys: [.fileSizeKey]).fileSize ?? 0
-            guard size <= 10 * 1024 * 1024 else { throw AccountError.largeFile }
-            let text = try String(contentsOf: url, encoding: .utf8)
-            let local = LocalBook.importing(text: text, title: url.deletingPathExtension().lastPathComponent)
-            guard !local.paragraphs.isEmpty else { throw AccountError.emptyFile }
-            guard let libraryStore else { throw AccountError.libraryUnavailable }
-            let updated = localBooks + [local]
-            try libraryStore.save(updated)
-            localBooks = updated; openLocal(local.book)
-        } catch { notice = "导入失败：\(error.localizedDescription)" }
+        guard let libraryStore else { notice = AccountError.libraryUnavailable.localizedDescription; return }
+        let granted = url.startAccessingSecurityScopedResource()
+        let snapshot = LocalLibraryArchive(books: localBooks, deletedBooks: deletedBooks)
+        libraryBusy = true
+        Task {
+            defer { if granted { url.stopAccessingSecurityScopedResource() }; libraryBusy = false }
+            do {
+                let (archive, local) = try await Task.detached(priority: .userInitiated) {
+                    let local = try TXTImportPolicy.read(url)
+                    var archive = snapshot
+                    archive.books.append(local)
+                    try libraryStore.save(archive)
+                    return (archive, local)
+                }.value
+                localBooks = archive.books; openLocal(local.book)
+            } catch { notice = "导入失败：\(error.localizedDescription)" }
+        }
+    }
+
+    func deleteLocalBook(_ book: Book) {
+        guard book.source == .local, !libraryBusy else { return }
+        var archive = LocalLibraryArchive(books: localBooks, deletedBooks: deletedBooks)
+        guard archive.delete(bookID: book.id) else { return }
+        saveLibrary(archive, removedBookID: book.id)
+    }
+
+    func restoreLocalBook(_ book: Book) {
+        guard !libraryBusy else { return }
+        var archive = LocalLibraryArchive(books: localBooks, deletedBooks: deletedBooks)
+        guard archive.restore(bookID: book.id) else { return }
+        saveLibrary(archive)
+    }
+
+    private func saveLibrary(_ archive: LocalLibraryArchive, removedBookID: String? = nil) {
+        guard let libraryStore else { notice = AccountError.libraryUnavailable.localizedDescription; return }
+        libraryBusy = true
+        Task {
+            defer { libraryBusy = false }
+            do {
+                try await Task.detached(priority: .userInitiated) { try libraryStore.save(archive) }.value
+                localBooks = archive.books; deletedBooks = archive.deletedBooks
+                if selectedBook.id == removedBookID { openLocal(SampleLibrary.book) }
+            } catch { notice = "书库保存失败，书籍未变更：\(error.localizedDescription)" }
+        }
     }
 
     private func readable(_ error: Error) -> String {
@@ -195,12 +267,10 @@ final class AppState: ObservableObject {
 }
 
 enum AccountError: LocalizedError {
-    case invalidKey, emptyFile, largeFile, libraryUnavailable
+    case invalidKey, libraryUnavailable
     var errorDescription: String? {
         switch self {
         case .invalidKey: "API Key 应以 wrk- 开头，且不能包含空白字符。"
-        case .emptyFile: "文件中没有可阅读的文字。"
-        case .largeFile: "当前版本支持 10 MB 以内的 TXT 文件。"
         case .libraryUnavailable: "本地书库不可用，请重新打开应用。"
         }
     }

@@ -6,7 +6,8 @@ struct ContentView: View {
     @AppStorage("reader.skin") private var skin: ReaderSkin = .sakura
     @AppStorage("reader.decorations") private var decorated = true
     @AppStorage("reader.theme") private var theme: ReaderTheme = .sepia
-    @AppStorage("reader.layout") private var layout: ReaderLayout = .scroll
+    @AppStorage("reader.layout") private var layout: ReaderLayout = .paged
+    @AppStorage("reader.paginationVersion") private var paginationVersion = 0
     @AppStorage("reader.fontSize") private var fontSize = 20.0
     @Environment(\.colorScheme) private var systemScheme
     @State private var showsAppearance = false
@@ -14,6 +15,7 @@ struct ContentView: View {
     @State private var sidebarTab: SidebarTab = .shelf
     @State private var jumpTarget: String?
     private var palette: SkinPalette { SkinPalette(skin: skin, theme: theme, systemDark: systemScheme == .dark) }
+    private var usesPagination: Bool { state.selectedBook.source != .weread && layout != .scroll }
 
     var body: some View {
         ZStack {
@@ -49,12 +51,16 @@ struct ContentView: View {
         }
         .foregroundStyle(palette.ink).environment(\.skinPalette, palette).tint(palette.accent)
         .preferredColorScheme(theme == .system ? nil : palette.dark ? .dark : .light)
+        .onAppear {
+            if paginationVersion == 0 { layout = .paged; paginationVersion = 1 }
+        }
         .sheet(isPresented: $showsSkins) {
             SkinPicker(skin: $skin, decorated: $decorated, theme: $theme)
                 .environment(\.skinPalette, palette)
                 .preferredColorScheme(theme == .system ? nil : palette.dark ? .dark : .light)
         }
         .sheet(isPresented: $state.showsSettings) { AccountSettings(state: state).environment(\.skinPalette, palette) }
+        .sheet(isPresented: $state.showsDeletedBooks) { deletedBooksSheet }
         .alert("提示", isPresented: Binding(get: { state.notice != nil }, set: { if !$0 { state.notice = nil } })) {
             Button("好") { state.notice = nil }
         } message: { Text(state.notice ?? "") }
@@ -74,16 +80,18 @@ struct ContentView: View {
                 navigationRow("段落想法", symbol: "text.bubble", active: state.showsComments && !state.showsWeb) { state.showsComments.toggle(); state.showsWeb = false }
             }.padding(.horizontal, 12)
             ScrollView {
-                VStack(alignment: .leading, spacing: 18) {
+                LazyVStack(alignment: .leading, spacing: 18) {
                     if sidebarTab == .shelf {
                         HStack {
                             Text("我的书架").font(.caption).foregroundStyle(palette.muted)
                             Spacer()
-                            SkinIconButton(title: "导入 TXT", symbol: "plus") { state.importText() }
+                            SkinIconButton(title: "最近删除", symbol: "trash") { state.showsDeletedBooks = true }
+                            SkinIconButton(title: "导入 TXT（最多 100 MB）", symbol: "plus") { state.importText() }.disabled(state.libraryBusy)
                         }.padding(.horizontal, 10)
+                        if state.libraryBusy { ProgressView("正在处理书库…").controlSize(.small).padding(.horizontal, 10) }
                         VStack(spacing: 6) { ForEach(state.books) { book in bookRow(book) } }
                         HStack {
-                            Text("微信读书 · 电子书").font(.caption).foregroundStyle(palette.muted)
+                            Text("微信读书 · 书架与划线").font(.caption).foregroundStyle(palette.muted)
                             Spacer()
                             SkinIconButton(title: "同步电子书架", symbol: "arrow.clockwise") { Task { await state.refreshShelf() } }.disabled(state.loadingShelf)
                         }.padding(.horizontal, 10)
@@ -150,6 +158,12 @@ struct ContentView: View {
                 .background(state.selectedBook == book && !state.showsWeb ? palette.selection : .clear, in: RoundedRectangle(cornerRadius: 12))
                 .contentShape(Rectangle())
         }.buttonStyle(.plain)
+        .contextMenu {
+            if book.source == .local {
+                Button(role: .destructive) { state.deleteLocalBook(book) } label: { Label("移到最近删除", systemImage: "trash") }
+                    .disabled(state.libraryBusy)
+            }
+        }
     }
 
     private var reader: some View {
@@ -164,28 +178,27 @@ struct ContentView: View {
                 ContentUnavailableView {
                     Label("暂无热门划线", systemImage: "text.quote")
                 } description: {
-                    Text("微信读书暂未返回这本书的热门划线。\n点击“阅读全文”，通过官方网页版继续阅读。")
+                    Text("已同步书架，但微信读书暂未返回热门划线。\n官方接口不提供整本正文下载，本地未保存该书全文。")
                 } actions: {
-                    Button("阅读全文", systemImage: "globe") {
+                    Button("官方网页阅读", systemImage: "globe") {
                         state.showOfficialReader(for: state.selectedBook)
                     }
                     .buttonStyle(.borderedProminent)
                 }
+            } else if usesPagination {
+                PagedReader(state: state, fontSize: fontSize, color: palette.ink)
             } else {
                 ScrollViewReader { proxy in
                     ScrollView {
                         LazyVStack(alignment: .leading, spacing: 22) {
-                            ForEach(visibleParagraphs) { paragraph in paragraphView(paragraph).id(paragraph.id) }
+                            ForEach(state.paragraphs) { paragraph in paragraphView(paragraph).id(paragraph.id) }
                         }.padding(.horizontal, 32).padding(.vertical, 26).frame(maxWidth: 830).frame(maxWidth: .infinity)
                     }
                     .task(id: "\(state.selectedBook.id)-\(state.paragraphs.count)-\(layout.rawValue)") {
-                        if layout != .paged, let id = state.selectedParagraph?.id { proxy.scrollTo(id, anchor: .center) }
+                        if let id = state.selectedParagraph?.id { proxy.scrollTo(id, anchor: .center) }
                     }
                     .onChange(of: jumpTarget) { _, id in
                         if let id { withAnimation(.easeInOut(duration: 0.2)) { proxy.scrollTo(id, anchor: .center) } }
-                    }
-                    .onChange(of: state.page) { _, _ in
-                        if layout == .paged, let first = visibleParagraphs.first { proxy.scrollTo(first.id, anchor: .top) }
                     }
                 }
             }
@@ -198,15 +211,19 @@ struct ContentView: View {
             BookCover(book: state.selectedBook, width: 42, height: 58)
             VStack(alignment: .leading, spacing: 7) {
                 Text(state.selectedBook.title).font(.system(size: 20, weight: .medium, design: .serif)).lineLimit(1)
-                Text(state.selectedBook.source == .weread ? "热门划线 · 最多 20 条" : state.selectedBook.source == .sample ? "第一章 · 阅读的空间 · 原创示例" : "本地 TXT · 阅读位置自动保存")
+                Text(state.selectedBook.source == .weread ? "热门划线摘录 · 非本地全文" : state.selectedBook.source == .sample ? "第一章 · 阅读的空间 · 原创示例" : "本地 TXT · 阅读位置自动保存")
                     .font(.system(size: 11)).foregroundStyle(palette.muted).lineLimit(1)
             }
             Spacer(minLength: 4)
+            if state.selectedBook.source == .local {
+                SkinIconButton(title: "删除本地书（可在最近删除恢复）", symbol: "trash") { state.deleteLocalBook(state.selectedBook) }
+                    .disabled(state.libraryBusy)
+            }
             if layout == .focus { SkinIconButton(title: "退出专注", symbol: "sidebar.left") { layout = .scroll } }
             SkinIconButton(title: "段落想法", symbol: "text.bubble", selected: state.showsComments) { state.showsComments.toggle() }
             SkinIconButton(title: "阅读设置", symbol: "textformat.size") { showsAppearance.toggle() }.popover(isPresented: $showsAppearance) { appearance }
             SkinIconButton(title: "切换皮肤", symbol: "paintpalette") { showsSkins = true }
-            if state.selectedBook.source == .weread { SkinIconButton(title: "阅读全文", symbol: "globe") { state.showOfficialReader(for: state.selectedBook) } }
+            if state.selectedBook.source == .weread { SkinIconButton(title: "官方网页阅读", symbol: "globe") { state.showOfficialReader(for: state.selectedBook) } }
         }.padding(.horizontal, 24).padding(.vertical, 22)
     }
 
@@ -219,8 +236,8 @@ struct ContentView: View {
                 }
             }.frame(height: 3)
             HStack {
-                Text(layout.title).font(.system(size: 11)).foregroundStyle(palette.muted); Spacer()
-                if layout == .paged {
+                Text(state.selectedBook.source == .weread ? "热门划线摘录" : layout.title).font(.system(size: 11)).foregroundStyle(palette.muted); Spacer()
+                if usesPagination {
                     SkinIconButton(title: "上一页", symbol: "chevron.left") { state.navigatePage(-1) }.disabled(state.page == 0)
                     Text("\(state.page + 1) / \(state.pageCount)").font(.caption.monospacedDigit()).frame(minWidth: 45)
                     SkinIconButton(title: "下一页", symbol: "chevron.right") { state.navigatePage(1) }.disabled(state.page + 1 >= state.pageCount)
@@ -234,9 +251,9 @@ struct ContentView: View {
     private var selectedIndex: Int { state.paragraphs.firstIndex { $0.id == state.selectedParagraph?.id } ?? 0 }
     private var readingProgress: Double {
         guard !state.paragraphs.isEmpty else { return 0 }
+        if usesPagination { return Double(state.page + 1) / Double(state.pageCount) }
         return Double(selectedIndex + 1) / Double(state.paragraphs.count)
     }
-    private var visibleParagraphs: [Paragraph] { layout == .paged ? Array(state.paragraphs.dropFirst(state.page * 4).prefix(4)) : state.paragraphs }
 
     private func paragraphView(_ paragraph: Paragraph) -> some View {
         let selected = state.selectedParagraph?.id == paragraph.id
@@ -267,8 +284,36 @@ struct ContentView: View {
             Picker("显示方式", selection: $layout) { ForEach(ReaderLayout.allCases, id: \.self) { Text($0.title).tag($0) } }
             HStack { Text("字号"); Slider(value: $fontSize, in: 16...32, step: 1); Text("\(Int(fontSize))").monospacedDigit() }
             Button { showsAppearance = false; showsSkins = true } label: { Label("切换皮肤 · \(skin.title)", systemImage: "paintpalette") }.buttonStyle(.plain).foregroundStyle(palette.accent)
-            Text("原生书页的设置。分组翻页每页四段；网页全文使用网页内设置。").font(.caption).foregroundStyle(palette.muted)
+            Text("本地书按窗口与字号自动分页。点击书页左右边缘、← / → 或空格翻页；微信读书划线为摘录列表，官方网页使用网页内设置。").font(.caption).foregroundStyle(palette.muted)
         }.padding(24).frame(width: 380).foregroundStyle(palette.ink).background(palette.paper)
+    }
+
+    private var deletedBooksSheet: some View {
+        VStack(alignment: .leading, spacing: 18) {
+            HStack {
+                Text("最近删除").font(.title2)
+                Spacer()
+                Button("完成") { state.showsDeletedBooks = false }
+            }
+            Text("删除的本地书可在这里恢复，阅读位置也会保留。导入前的原始 TXT 文件不会被删除。").font(.callout).foregroundStyle(palette.muted)
+            if state.deletedBooks.isEmpty {
+                ContentUnavailableView("这里还没有书", systemImage: "trash", description: Text("书籍删除后会出现在这里。"))
+            } else {
+                List(state.deletedBooks, id: \.book.id) { local in
+                    HStack {
+                        Text(local.book.title)
+                        Spacer()
+                        Button("恢复") { state.restoreLocalBook(local.book) }.disabled(state.libraryBusy)
+                    }
+                    .listRowBackground(palette.paper)
+                }
+                .scrollContentBackground(.hidden)
+            }
+            if state.libraryBusy { ProgressView("正在保存…") }
+        }
+        .padding(24).frame(width: 520, height: 400)
+        .foregroundStyle(palette.ink).background(palette.paper)
+        .environment(\.skinPalette, palette)
     }
 }
 

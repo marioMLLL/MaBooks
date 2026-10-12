@@ -28,6 +28,10 @@ The API key SHALL be stored only in Keychain. Auth, transport, decoding and requ
 ### Requirement: Official full-text reader
 The app SHALL provide a persistent WebKit view of the official website and accept only official HTTPS reader URLs for in-app book navigation.
 
+#### Scenario: Explain native content availability
+- **WHEN** a user opens a synced WeRead shelf entry
+- **THEN** the app SHALL label native content as highlight excerpts, disclose that full book text is not stored locally, and label full-text navigation as official web reading
+
 #### Scenario: Book has no reader link
 - **WHEN** the selected book lacks an official HTTPS readerLink
 - **THEN** the app SHALL offer the official homepage without inventing a book URL

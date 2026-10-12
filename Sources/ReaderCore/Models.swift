@@ -72,7 +72,7 @@ public enum ReaderTheme: String, CaseIterable, Codable {
 public enum ReaderLayout: String, CaseIterable, Codable {
     case scroll, paged, focus
     public var title: String {
-        switch self { case .scroll: "连续滚动"; case .paged: "分组翻页"; case .focus: "专注阅读" }
+        switch self { case .scroll: "连续滚动"; case .paged: "点击翻页"; case .focus: "专注阅读" }
     }
 }
 

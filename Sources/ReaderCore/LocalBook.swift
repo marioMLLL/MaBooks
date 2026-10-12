@@ -6,10 +6,13 @@ public struct LocalBook: Codable, Sendable {
     public init(book: Book, paragraphs: [Paragraph]) { self.book = book; self.paragraphs = paragraphs }
 
     public static func importing(text: String, title: String, id: String = UUID().uuidString) -> LocalBook {
-        let normalized = text.replacingOccurrences(of: "\r\n", with: "\n").replacingOccurrences(of: "\r", with: "\n")
-        let lines = normalized.components(separatedBy: "\n").map { $0.trimmingCharacters(in: .whitespacesAndNewlines) }.filter { !$0.isEmpty }
-        return LocalBook(book: Book(id: id, title: title, author: "本地 TXT", source: .local),
-                         paragraphs: lines.enumerated().map { Paragraph(id: "\(id)-\($0.offset)", text: $0.element, chapterTitle: title) })
+        let normalized = text.contains("\r") ? text.replacingOccurrences(of: "\r\n", with: "\n").replacingOccurrences(of: "\r", with: "\n") : text
+        var paragraphs: [Paragraph] = []
+        normalized.enumerateSubstrings(in: normalized.startIndex..<normalized.endIndex, options: .byLines) { line, _, _, _ in
+            let content = (line ?? "").trimmingCharacters(in: .whitespacesAndNewlines)
+            if !content.isEmpty { paragraphs.append(Paragraph(id: "\(id)-\(paragraphs.count)", text: content, chapterTitle: title)) }
+        }
+        return LocalBook(book: Book(id: id, title: title, author: "本地 TXT", source: .local), paragraphs: paragraphs)
     }
 }
 
