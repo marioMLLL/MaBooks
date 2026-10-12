@@ -97,10 +97,8 @@ struct WebReader: View {
     @ObservedObject var session: WebSession
     @ObservedObject var state: AppState
     let fullScreen: Bool
-    @Environment(\.skinPalette) private var palette
     var body: some View {
         VStack(spacing: 0) {
-            if !fullScreen {
             HStack {
                 Button { session.view.goBack() } label: { Image(systemName: "chevron.left") }.disabled(!session.canGoBack)
                 Button { session.navigate(OfficialReaderURL.home) } label: { Label("首页", systemImage: "house") }
@@ -108,8 +106,8 @@ struct WebReader: View {
                 if session.busy { ProgressView().controlSize(.small) }
                 Spacer()
                 Text(state.selectedBook.source == .weread ? state.selectedBook.title : "微信读书").font(.caption).lineLimit(1)
-                Button { session.toggleFullScreen() } label: { Label("全屏阅读", systemImage: "arrow.up.left.and.arrow.down.right") }
-                    .help("隐藏书架和工具栏，占满屏幕阅读（⌃⌘F）")
+                Button { session.toggleFullScreen() } label: { Label(fullScreen ? "退出全屏" : "全屏阅读", systemImage: fullScreen ? "arrow.down.right.and.arrow.up.left" : "arrow.up.left.and.arrow.down.right") }
+                    .help("进入／退出全屏，保留当前皮肤（⌃⌘F）")
                 Button("默认浏览器打开") { NSWorkspace.shared.open(OfficialReaderURL.validated(session.view.url) ?? OfficialReaderURL.home) }
             }.padding(12)
             if let error = session.error { Text(error).foregroundStyle(.red).padding(8) }
@@ -127,16 +125,7 @@ struct WebReader: View {
                 }.padding(12)
             }
             Divider()
-            }
             OfficialWebView(session: session)
-        }
-        .overlay(alignment: .topTrailing) {
-            if fullScreen {
-                Button { session.toggleFullScreen() } label: { Label("退出全屏", systemImage: "arrow.down.right.and.arrow.up.left") }
-                    .buttonStyle(.plain).padding(9)
-                    .foregroundStyle(palette.ink).background(palette.paper.opacity(0.92), in: Capsule())
-                    .help("退出全屏阅读（⌃⌘F）").padding(12)
-            }
         }
     }
 }

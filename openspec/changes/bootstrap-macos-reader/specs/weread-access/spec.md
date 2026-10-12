@@ -46,4 +46,4 @@ The app SHALL provide a persistent WebKit view of the official website and accep
 
 #### Scenario: Read the official webpage in full screen
 - **WHEN** the user activates full-screen reading using its button or Control-Command-F
-- **THEN** the app SHALL enter native window full screen, hide the app sidebar, toolbars and decorations, preserve the existing web session and page, and provide an exit control that restores the normal layout
+- **THEN** the app SHALL enter native window full screen, retain the current skin, decorations, sidebar, toolbars and rounded reading card consistently with local-document reading, preserve the existing web session and page, and provide an exit control
