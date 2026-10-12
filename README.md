@@ -1,110 +1,173 @@
-# MaBooks
+# MaBooks 📚🐾
 
-<img src="Sources/MaBooks/Resources/AppIcon.png" width="112" alt="MaBooks 猫咪读书图标" />
+<img src="Sources/MaBooks/Resources/AppIcon.png" width="112" alt="MaBooks：趴在书本上的猫咪与评论气泡" />
 
-一个以 SwiftUI 构建的 macOS 阅读工作台。将微信读书电子书架、热门划线和段落想法放在原生窗口里，全文通过内嵌官方网页版阅读。
+**给文字一张舒服的桌子，给你一个多读两页的理由。**
 
-**当前阶段：0.2 皮肤与阅读工作台。** 已实现官方 Gateway 适配与离线示例；尚未使用真实账号完成接口和扫码登录验收。这是独立开源项目，与腾讯无隶属关系。
+MaBooks 是一款 SwiftUI 原生 macOS 阅读软件：读本地 TXT，把微信读书的电子书架、热门划线和段落想法搬到桌面，再给阅读换一套喜欢的皮肤。猫咪负责可爱，翻页还得靠你。
 
-## 已有功能
+**macOS 14+ · 四套皮肤 · 段落想法 · MIT 开源**
 
-| 功能 | 当前实现 |
+![MaBooks 樱花皮肤下的三栏阅读界面：左侧书架、中间正文、右侧段落想法](docs/screenshots/reading-sakura.png)
+
+*实机截图，展示项目原创示例书与示例讨论。图里的猫已经躺好了，你也可以开始读了。*
+
+[快速上手](#start) · [功能清单](#features) · [换个皮肤](#skins) · [微信读书](#weread) · [安装运行](#install) · [开发与路线图](#development)
+
+<a id="start"></a>
+## 🚀 打开以后，先做这三件事
+
+1. **读两段。** 点击书架中的《在文字里停留》，直接体验内置示例，无需连接账号。
+2. **聊一句。** 点击正文段落或旁边的评论气泡，右侧会展开对应的想法。示例书展示示例讨论，微信读书划线展示接口返回的真实想法。
+3. **换个心情。** 点击正文顶部或书架底部的**画板图标**，选一套皮肤。先换三遍再读书，也算熟悉软件了。🎨
+
+想读自己的书？点击“我的书架”右侧的 **＋**，或按 **⌘O** 导入 UTF-8 TXT。当前支持 **10 MB 以内**的文件，导入后保存在本机；点击一段文字可记住位置，再次打开该书时继续。
+
+<a id="features"></a>
+## ✨ 功能清单：猫很忙，软件也没闲着
+
+| 功能 | 怎么用 / 能做什么 |
 | --- | --- |
-| 原生阅读 | 原创示例书、UTF-8 TXT 导入（10 MB 以内）、本地保存 |
-| 皮肤切换 | 春日樱语、海盐微风、林间书屋、素纸；自动保存、可关闭装饰 |
-| 显示主题 | 明亮、纸张、夜间、跟随系统 |
-| 阅读布局 | 连续滚动、每页四段的分组翻页、隐藏书架的专注模式 |
-| 阅读位置 | 点击段落或切换分组翻页后自动保存；再次打开书籍恢复 |
-| 微信读书书架 | 官方 API Key 连接，手动同步电子书条目 |
-| 段落想法 | 从热门划线选择原文，按 bookId / chapterUid / range 查询、翻页 |
-| 微信读书全文 | WKWebView 内嵌官网，独立扫码登录；默认浏览器备用入口 |
-| 账号存储 | API Key 保存在 macOS 钥匙串；网页会话由 WebKit 保存 |
+| 📖 本地阅读 | 内置原创示例书；通过 ＋ 或 ⌘O 导入 UTF-8 TXT，重启后书库仍在 |
+| 🎨 四套皮肤 | 春日樱语、海盐微风、林间书屋、素纸；点击画板切换，选择自动保存 |
+| 🌗 四种阅读主题 | 明亮、纸张、夜间、跟随系统；与皮肤独立设置 |
+| 🧘 三种阅读布局 | 连续滚动、分组翻页、专注阅读；分组翻页每页四段，专注模式隐藏书架 |
+| 🔠 字号与段落导航 | 在“阅读设置”中调节字号；左侧“段落导航”可跳到指定段落或热门划线 |
+| 📍 阅读位置 | 点击段落或切换分组页后保存位置，再次打开该书时恢复 |
+| 🔗 微信读书电子书架 | 保存官方 API Key 后同步电子书条目，点击同步图标可再次刷新 |
+| 💬 划线下的想法 | 选书 → 热门划线 → 点击原文；右侧查看该位置的想法，有更多时可继续加载 |
+| 🌐 微信读书全文 | 点击“阅读全文”的地球图标，进入内嵌官方网页版；也可用默认浏览器打开 |
+| 🔐 账号存储 | API Key 放进 macOS 钥匙串；网页会话由 WebKit 保存，二者可分别断开 |
 
-原生的主题、字号和布局控制适用于本地书及划线列表。微信读书网页全文使用网站自身的阅读设置。热门划线接口最多返回 20 条，不代表全书正文或全部划线。书架当前仅显示电子书，不包括有声书与文章收藏。
+### 常用快捷键，少找几次按钮
 
-点击正文顶部或书架底部的画板图标可切换皮肤。默认采用原创樱花窗边插画、暖白面板、粉色段落高亮和三栏阅读布局，设计说明与素材提示词见 [皮肤模块](docs/SKINS.md)。
+| 快捷键 | 操作 |
+| --- | --- |
+| `⌘O` | 导入 TXT |
+| `⌘,` | 账号设置 |
+| `⌘⇧I` | 显示 / 隐藏段落想法 |
+| `⌘⇧W` | 打开微信读书网页版 |
 
-## 运行
+<a id="skins"></a>
+## 🎨 换肤：今天的书，穿什么？
 
-要求 macOS 14+、Swift 6.0+（测试使用 Swift Testing）。安装 Xcode 或 Apple Command Line Tools：
+点击正文顶部或书架底部的 **画板图标 → 选择皮肤**，立即生效，自动保存。书架、正文、评论面板和段落高亮一起换色，阅读位置、字号和布局继续留在原处。
+
+| 皮肤 | 阅读氛围 |
+| --- | --- |
+| 🌸 **春日樱语** | 默认皮肤。樱花窗边、奶油色书页、粉色高亮；猫咪已经替你占好座位 |
+| 🌊 **海盐微风** | 清爽蓝色与柔和曲线，给桌面吹点海风，暂时不用买机票 |
+| 🌿 **林间书屋** | 温柔绿意，适合把一段文字读得慢一点 |
+| 📄 **素纸** | 简洁配色与安静书页，适合今天只想跟文字待一会儿 |
+
+<p align="center">
+  <img src="docs/screenshots/skin-picker.png" width="620" alt="MaBooks 实际皮肤选择器，展示四套皮肤、装饰开关和阅读主题" />
+</p>
+
+**皮肤和阅读主题各管一摊。** 喜欢樱花，也可以搭配夜间主题；想让页面更安静，可以关闭“显示皮肤装饰”，保留配色和封面缩略图。
+
+![MaBooks 春日樱语皮肤搭配夜间阅读主题的实际界面](docs/screenshots/reading-night.png)
+
+*同一套樱花皮肤的夜间主题。猫没有下班，书页已经关灯。🌙*
+
+字号与显示方式在正文顶部的**阅读设置（字号图标）**里调整。以上设置用于本地书和原生划线列表；微信读书网页全文使用网页内的阅读设置。
+
+<a id="weread"></a>
+## 💬 接上微信读书，让划线旁边热闹一点
+
+### 连接书架与段落想法
+
+1. 点击书架底部的**人形账号图标**，或按 **⌘,** 打开账号设置。
+2. 前往 [微信读书官方 API Key 页面](https://weread.qq.com/r/weread-skills)，登录并获取自己的 `wrk-…` Key。
+3. 将 Key 粘贴到应用里的密码输入框，点击 **“保存并同步”**。
+4. 在“微信读书 · 电子书”区域选择一本书，查看热门划线。
+5. 点击一条原文，在右侧查看对应的想法；出现 **“加载更多”** 时可继续翻阅。
+
+### 阅读全文
+
+点击阅读区顶部的**“阅读全文”地球图标**，或从书架底部打开“微信读书”，再按官网提示登录。网页与 API 各自登录：连接 API 后，网页仍可能需要登录；账号设置里也有独立的“断开 API 连接”和“退出网页账号”按钮。
+
+API Key 请留在应用和钥匙串里。它不用参加 Git 提交，也不用到公开 Issue 里交朋友。🔑
+
+### 当前版本能读到哪里？
+
+当前版本为 **0.2.1**。官方 Gateway 的书架、热门划线和评论适配已实现，真实账号回包与网页登录联调仍按 [验收清单](docs/ACCEPTANCE.md) 推进。
+
+- 原生微信读书内容区展示**热门划线摘录**，接口最多返回 20 条；全文通过官方网页版阅读。
+- 微信读书书架目前显示**电子书**；有声书和文章收藏暂未接入。
+- 本地格式目前支持 **TXT**；EPUB、PDF 和按排版计算的真实分页在 [迭代路线](docs/ROADMAP.md) 中。
+- 本地 TXT 没有社区评论；内置示例的讨论会明确标为“示例”。
+
+MaBooks 是独立开源项目，与腾讯无隶属关系。在线能力使用腾讯公开的官方 Gateway，不下载微信读书全书，也不读取其他浏览器的 Cookie。
+
+<a id="install"></a>
+## 🍎 安装运行：让猫搬进你的 Mac
+
+### 使用 GitHub 构建产物
+
+前往 [Actions](https://github.com/marioMLLL/MaBooks/actions/workflows/macos.yml)，打开一次成功的 `macOS` 构建，在 **Artifacts** 中下载 `MaBooks-arm64`。解压下载包中的 `MaBooks.zip`，即可得到 `MaBooks.app`。
+
+当前 CI 附件面向 Apple Silicon Mac；Intel Mac 可以在本机从源码构建。构建产物采用本地 ad-hoc 签名，尚未经过 Apple 公证，正式签名发行版仍在后续计划中。
+
+### 从源码运行
+
+需要 **macOS 14+、Swift 6.0+**，安装 Xcode 或 Apple Command Line Tools 即可。
 
 ```sh
+# 已安装 Xcode / Command Line Tools 可跳过这一行
 xcode-select --install
+
 git clone https://github.com/marioMLLL/MaBooks.git
 cd MaBooks
 swift run MaBooks
 ```
 
-在 Xcode 中打开 `Package.swift`，选择 `MaBooks` scheme 和 My Mac 也可运行。
+也可以在 Xcode 中打开 `Package.swift`，选择 `MaBooks` scheme 和 `My Mac` 后运行。
 
-构建本地应用：
+要生成自己的应用包：
 
 ```sh
 bash scripts/package-app.sh
 open dist/MaBooks.app
 ```
 
-脚本生成本机架构的 `.app` 并进行 ad-hoc 签名。它不是经过 Apple 公证的发行版，不会自动安装到 Applications。GitHub Actions 提供构建 ZIP 作为 CI artifact；正式签名、公证及 Universal Binary 是后续工作。
+生成的应用位于 `dist/MaBooks.app`，包含皮肤素材和猫咪图标，可自行放入 Applications。
 
-图标源图位于 `Sources/MaBooks/Resources/AppIcon.png`。打包时使用 macOS 自带的 `sips` 和 `iconutil` 生成包含 16–1024 像素规格的 `MaBooks.icns`，并用于 Finder 与 Dock，详见 [图标说明](docs/ICON.md)。
+<a id="development"></a>
+## 🛠️ 开发与路线图：这只猫还在长本事
 
-## 连接微信读书
+后续优先完成真实账号联调，再增加 EPUB / PDF、本地高亮与笔记、字体感知分页和正式签名分发。具体任务见 [ROADMAP](docs/ROADMAP.md)。欢迎围绕使用体验、界面或格式支持提交 [Issue](https://github.com/marioMLLL/MaBooks/issues)。
 
-1. 打开应用右上角“账号”，前往 [微信读书官方 API Key 页面](https://weread.qq.com/r/weread-skills)。
-2. 在应用 SecureField 中粘贴自己的 `wrk-…` Key，点击“保存并同步”。请勿把 Key 写进代码、Issue 或提交记录。
-3. 从“微信读书 · 电子书”选择一本书，读取热门划线；点击原文，在侧边栏查看该位置的真实想法。
-4. 点击“阅读全文”进入官方网页版，按网站流程登录。API Key 和网页扫码登录相互独立。
-5. 账号设置中可以分别断开 API 和退出网页账号。
-
-实现依据腾讯公开文档（检查日期：2026-10-12）：
-
-- [官方 Gateway 入口与请求规范](https://github.com/Tencent/WeChatReading/blob/main/skills/SKILL.md)
-- [电子书架](https://github.com/Tencent/WeChatReading/blob/main/skills/shelf.md)
-- [热门划线与划线下的想法](https://github.com/Tencent/WeChatReading/blob/main/skills/notes.md)
-
-当前请求版本为 `1.0.5`。参数放在顶层；如果服务端返回 `upgrade_info`，应用会停止解析并要求更新。书籍阅读链接直接使用官方返回的 `readerLink`，不会自行拼接 ID。应用不下载微信读书全书、不读取其他浏览器 Cookie，也不访问移动 App 私有接口。
-
-## 项目结构
+<details>
+<summary>给准备撸起袖子的开发者：结构、检查和接口文档</summary>
 
 ```text
-Sources/
-  ReaderCore/       # Book / Paragraph / opaque anchor、TXT、示例内容
-  WeReadKit/        # 官方 Gateway 网络请求和领域模型适配
-  MaBooks/        # SwiftUI、账号钥匙串、书库持久化、WebKit
-Tests/
-  ReaderCoreTests/  # 本地文本、模型持久化和 URL 校验
-  WeReadKitTests/   # URLProtocol fixtures、定位、分页、错误和升级
-openspec/changes/bootstrap-macos-reader/
-                    # proposal / design / specs / tasks
-docs/               # 架构、验收与迭代路线
-packaging/          # .app 元数据
-scripts/            # 打包脚本
-.github/workflows/  # macOS 编译、测试、打包
+Sources/ReaderCore/   # 书籍、段落定位、TXT、皮肤标识
+Sources/WeReadKit/    # 官方 Gateway 与响应适配
+Sources/MaBooks/      # SwiftUI、皮肤、钥匙串、本地书库、WebKit
+Tests/               # 阅读模型与 Gateway 合成回包测试
+openspec/changes/    # 每次迭代的提案、设计、规格与任务
+docs/                # 设计、验收和路线图
+packaging/           # 应用元数据
+scripts/             # 测试、图标转换与应用打包
 ```
-
-```mermaid
-flowchart LR
-    UI[SwiftUI 工作台] --> Core[ReaderCore]
-    UI --> Adapter[WeReadKit]
-    Adapter --> Gateway[腾讯官方 Agent Gateway]
-    UI --> Web[WKWebView 官方全文]
-    UI --> Local[本地书库与阅读位置]
-    UI --> Keychain[macOS 钥匙串]
-    Core --> Formats[后续 EPUB / PDF providers]
-```
-
-## 验证与迭代
 
 ```sh
 bash scripts/test.sh
-swift build -c release
-openspec validate bootstrap-macos-reader --strict
+bash scripts/package-app.sh
+openspec validate mabooks-skins --strict
 ```
 
-Fixtures 是依据官方字段编写的合成数据，不是已验证的真实账号回包。实际账号兼容性需按 [验收清单](docs/ACCEPTANCE.md) 确认。后续优先完成真实账号联调、EPUB/PDF 导入、字体感知分页和全文中的原生评论联动，见 [迭代路线](docs/ROADMAP.md)。
+接口依据腾讯公开文档：[调用规范](https://github.com/Tencent/WeChatReading/blob/main/skills/SKILL.md)、[书架](https://github.com/Tencent/WeChatReading/blob/main/skills/shelf.md)、[划线与想法](https://github.com/Tencent/WeChatReading/blob/main/skills/notes.md)。当前请求版本为 `1.0.5`，服务端要求升级时应用会提示更新。
 
-为兼容旧版，内部应用标识与数据目录仍保留原值；现有书库和设置可继续读取。本地书库位于 `~/Library/Application Support/WeReadMac/local-library.json`；偏好与段落位置存于 UserDefaults。当前不会在磁盘缓存微信读书书架或评论。
+更多细节：[皮肤模块](docs/SKINS.md) · [图标制作](docs/ICON.md) · [实机验收](docs/ACCEPTANCE.md)。自动测试使用合成数据；真实账号兼容性按验收清单单独确认。
 
-## License
+为兼容旧版，本地书库仍位于 `~/Library/Application Support/WeReadMac/local-library.json`，内部 bundle identifier 与 Keychain service 保持原值。偏好和段落位置存于 UserDefaults；当前不在磁盘缓存微信读书书架或评论。
 
-项目原创代码使用 [MIT](LICENSE) 许可证。书籍正文、读者想法和平台内容的权利仍归各自权利人。原创示例仅用于演示。
+</details>
+
+## 📜 License
+
+原创代码使用 [MIT](LICENSE) 许可证。书籍正文、读者想法和平台内容的权利归各自权利人。
+
+书可以慢慢读，猫可以继续睡。欢迎给 MaBooks 一颗 Star，让它醒来时发现自己有点受欢迎。⭐
