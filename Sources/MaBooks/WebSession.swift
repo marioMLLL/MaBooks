@@ -17,6 +17,8 @@ final class WebSession: NSObject, ObservableObject, WKNavigationDelegate, WKUIDe
     override init() {
         let config = WKWebViewConfiguration()
         config.websiteDataStore = .default()
+        config.userContentController.addUserScript(WKUserScript(source: WebPageNavigation.script,
+            injectionTime: .atDocumentEnd, forMainFrameOnly: true))
         view = WKWebView(frame: .zero, configuration: config)
         super.init()
         view.navigationDelegate = self; view.uiDelegate = self
@@ -106,6 +108,7 @@ struct WebReader: View {
                 if session.busy { ProgressView().controlSize(.small) }
                 Spacer()
                 Text(state.selectedBook.source == .weread ? state.selectedBook.title : "微信读书").font(.caption).lineLimit(1)
+                    .help("阅读卡片左侧 20% 上一页，右侧 20% 下一页；中间可选字、查看评论")
                 Button { session.toggleFullScreen() } label: { Label(fullScreen ? "退出全屏" : "全屏阅读", systemImage: fullScreen ? "arrow.down.right.and.arrow.up.left" : "arrow.up.left.and.arrow.down.right") }
                     .help("进入／退出全屏，保留当前皮肤（⌃⌘F）")
                 Button("默认浏览器打开") { NSWorkspace.shared.open(OfficialReaderURL.validated(session.view.url) ?? OfficialReaderURL.home) }

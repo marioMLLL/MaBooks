@@ -86,7 +86,7 @@ struct ContentView: View {
     private var sidebar: some View {
         VStack(alignment: .leading, spacing: 0) {
             HStack(alignment: .firstTextBaseline, spacing: 8) {
-                Text("MaBooks").font(.system(size: 29, weight: .medium, design: .serif))
+                Text("MaBooks").font(.system(size: 29, weight: .medium, design: .serif)).lineLimit(1).minimumScaleFactor(0.75)
                 Image(systemName: skin.symbol).font(.system(size: 19)).foregroundStyle(palette.accent.opacity(0.8))
                 Spacer(minLength: 0)
                 sidebarToggle
