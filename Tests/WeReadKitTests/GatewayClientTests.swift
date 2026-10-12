@@ -171,4 +171,40 @@ struct GatewayClientTests {
         do { _ = try await client.fetchShelf(); Issue.record("Expected missing key") }
         catch GatewayError.missingKey {} catch { Issue.record("Wrong error: \(error)") }
     }
+
+    @Test func bookInfoRefreshUsesServerReaderLinkAndKeepsBookIdentity() async throws {
+        let client = makeClient { request in
+            let payload = try body(request)
+            #expect(payload["api_name"] as? String == "/book/info")
+            #expect(payload["bookId"] as? String == "fixture-book")
+            return (200, #"{"bookId":"fixture-book","title":"原创验收书","author":"验收作者","readerLink":"https://weread.qq.com/web/reader/server-supplied"}"#)
+        }
+        let book = try await client.fetchBookInfo(bookID: "fixture-book")
+        #expect(book.readerURL?.path == "/web/reader/server-supplied")
+        let wrong = makeClient { _ in (200, #"{"bookId":"another-book","title":"另一本书"}"#) }
+        await #expect(throws: GatewayError.self) { _ = try await wrong.fetchBookInfo(bookID: "fixture-book") }
+    }
+
+    @Test(arguments: [(true, 16), (false, 10)])
+    func searchParsesV3GroupsWithoutConfusingResponseScopeWithRequestScope(_ novels: Bool, _ scope: Int) async throws {
+        let client = makeClient { request in
+            let payload = try body(request)
+            #expect(payload["api_name"] as? String == "/store/search")
+            #expect(payload["keyword"] as? String == "原创验收书")
+            #expect(payload["scope"] as? Int == scope)
+            return (200, #"{"results":[{"scope":17,"books":[{"bookInfo":{"bookId":"candidate-1","title":"原创验收书","author":"甲","readerLink":"https://weread.qq.com/web/reader/candidate-1"}},{"bookInfo":{"bookId":"candidate-2","title":"原创验收书","author":"乙","readerLink":"https://evil.test/book"}}]},{"books":[{"bookInfo":{"bookId":"candidate-1","title":"原创验收书","author":"甲"}}]}]}"#)
+        }
+        let books = try await client.searchBooks(title: "原创验收书", novels: novels)
+        #expect(books.count == 2)
+        #expect(books[0].author == "甲")
+        #expect(books[0].readerURL != nil)
+        #expect(books[1].readerURL == nil)
+    }
+
+    @Test func emptySearchIsExplicitAndUnrecognizedSearchPayloadFails() async throws {
+        let empty = makeClient { _ in (200, #"{"results":[],"hasMore":0}"#) }
+        #expect(try await empty.searchBooks(title: "原创验收书", novels: true).isEmpty)
+        let wrong = makeClient { _ in (200, #"{"books":[]}"#) }
+        await #expect(throws: GatewayError.self) { _ = try await wrong.searchBooks(title: "原创验收书", novels: true) }
+    }
 }

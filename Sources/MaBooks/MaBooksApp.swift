@@ -4,6 +4,7 @@ import AppKit
 @main
 struct MaBooksApp: App {
     @StateObject private var state = AppState()
+    @FocusedValue(\.toggleReaderSidebar) private var toggleReaderSidebar
     var body: some Scene {
         Window("MaBooks", id: "main") {
             ContentView(state: state)
@@ -35,6 +36,11 @@ struct MaBooksApp: App {
                 Button("账号设置…") { state.showsSettings = true }.keyboardShortcut(",")
             }
             CommandMenu("阅读") {
+                Button("展开／收起侧边栏") { toggleReaderSidebar?() }
+                    .keyboardShortcut("s", modifiers: [.command, .option])
+                    .disabled(toggleReaderSidebar == nil)
+                Button("进入／退出全屏阅读") { state.web.toggleFullScreen() }
+                    .keyboardShortcut("f", modifiers: [.control, .command])
                 Button("打开微信读书") { state.showOfficialReader() }.keyboardShortcut("w", modifiers: [.command, .shift])
                 Button("显示／隐藏想法") { state.showsComments.toggle() }.keyboardShortcut("i", modifiers: [.command, .shift])
             }

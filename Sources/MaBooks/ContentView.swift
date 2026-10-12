@@ -9,29 +9,34 @@ struct ContentView: View {
     @AppStorage("reader.layout") private var layout: ReaderLayout = .paged
     @AppStorage("reader.paginationVersion") private var paginationVersion = 0
     @AppStorage("reader.fontSize") private var fontSize = 20.0
+    @AppStorage("reader.sidebarVisible") private var sidebarVisible = true
     @Environment(\.colorScheme) private var systemScheme
     @State private var showsAppearance = false
     @State private var showsSkins = false
     @State private var sidebarTab: SidebarTab = .shelf
     @State private var jumpTarget: String?
+    @State private var windowIsFullScreen = false
     private var palette: SkinPalette { SkinPalette(skin: skin, theme: theme, systemDark: systemScheme == .dark) }
     private var usesPagination: Bool { state.selectedBook.source != .weread && layout != .scroll }
+    private var webFullScreen: Bool { state.showsWeb && windowIsFullScreen }
+    private var showsSidebar: Bool { sidebarVisible && (layout != .focus || state.showsWeb) }
 
     var body: some View {
         ZStack {
             SkinBackdrop(palette: palette, decorated: decorated)
             VStack(spacing: 12) {
                 HSplitView {
-                    if layout != .focus || state.showsWeb { sidebar.frame(minWidth: 210, idealWidth: 235, maxWidth: 270) }
+                    if showsSidebar { sidebar.frame(minWidth: 210, idealWidth: 235, maxWidth: 270) }
                     VStack(spacing: 0) {
                         if state.showsWeb {
                             HStack {
+                                if !showsSidebar { sidebarToggle }
                                 Text("MaBooks · 微信读书").font(.headline)
                                 Spacer()
                                 SkinIconButton(title: "切换皮肤", symbol: "paintpalette") { showsSkins = true }
                                 SkinIconButton(title: "账号设置", symbol: "person.crop.circle") { state.showsSettings = true }
                             }.padding(16).background(palette.paper.opacity(0.94))
-                            WebReader(session: state.web)
+                            WebReader(session: state.web, state: state, fullScreen: webFullScreen)
                         } else { reader }
                     }.frame(minWidth: 400, maxWidth: .infinity, maxHeight: .infinity)
                     if state.showsComments && !state.showsWeb {
@@ -51,8 +56,19 @@ struct ContentView: View {
         }
         .foregroundStyle(palette.ink).environment(\.skinPalette, palette).tint(palette.accent)
         .preferredColorScheme(theme == .system ? nil : palette.dark ? .dark : .light)
+        .focusedSceneValue(\.toggleReaderSidebar, toggleSidebar)
         .onAppear {
             if paginationVersion == 0 { layout = .paged; paginationVersion = 1 }
+        }
+        .onReceive(NotificationCenter.default.publisher(for: NSWindow.didEnterFullScreenNotification)) { notification in
+            if let window = notification.object as? NSWindow, window == state.web.view.window || window.title == "MaBooks" {
+                windowIsFullScreen = true
+            }
+        }
+        .onReceive(NotificationCenter.default.publisher(for: NSWindow.didExitFullScreenNotification)) { notification in
+            if let window = notification.object as? NSWindow, window == state.web.view.window || window.title == "MaBooks" {
+                windowIsFullScreen = false
+            }
         }
         .sheet(isPresented: $showsSkins) {
             SkinPicker(skin: $skin, decorated: $decorated, theme: $theme)
@@ -61,6 +77,7 @@ struct ContentView: View {
         }
         .sheet(isPresented: $state.showsSettings) { AccountSettings(state: state).environment(\.skinPalette, palette) }
         .sheet(isPresented: $state.showsDeletedBooks) { deletedBooksSheet }
+        .sheet(isPresented: $state.showsBookSearch) { readingCandidatesSheet }
         .alert("提示", isPresented: Binding(get: { state.notice != nil }, set: { if !$0 { state.notice = nil } })) {
             Button("好") { state.notice = nil }
         } message: { Text(state.notice ?? "") }
@@ -69,8 +86,10 @@ struct ContentView: View {
     private var sidebar: some View {
         VStack(alignment: .leading, spacing: 0) {
             HStack(alignment: .firstTextBaseline, spacing: 8) {
-                Text("MaBooks").font(.system(size: 29, weight: .medium, design: .serif))
+                Text("MaBooks").font(.system(size: 29, weight: .medium, design: .serif)).lineLimit(1).minimumScaleFactor(0.75)
                 Image(systemName: skin.symbol).font(.system(size: 19)).foregroundStyle(palette.accent.opacity(0.8))
+                Spacer(minLength: 0)
+                sidebarToggle
             }.padding(.top, 27).padding(.horizontal, 22)
             Text("阅读让心靠近一点").font(.system(size: 10)).tracking(4)
                 .foregroundStyle(palette.muted).padding(.horizontal, 24).padding(.top, 7).padding(.bottom, 24)
@@ -208,6 +227,7 @@ struct ContentView: View {
 
     private var readerHeader: some View {
         HStack(spacing: 14) {
+            if !showsSidebar { sidebarToggle }
             BookCover(book: state.selectedBook, width: 42, height: 58)
             VStack(alignment: .leading, spacing: 7) {
                 Text(state.selectedBook.title).font(.system(size: 20, weight: .medium, design: .serif)).lineLimit(1)
@@ -219,12 +239,26 @@ struct ContentView: View {
                 SkinIconButton(title: "删除本地书（可在最近删除恢复）", symbol: "trash") { state.deleteLocalBook(state.selectedBook) }
                     .disabled(state.libraryBusy)
             }
-            if layout == .focus { SkinIconButton(title: "退出专注", symbol: "sidebar.left") { layout = .scroll } }
             SkinIconButton(title: "段落想法", symbol: "text.bubble", selected: state.showsComments) { state.showsComments.toggle() }
             SkinIconButton(title: "阅读设置", symbol: "textformat.size") { showsAppearance.toggle() }.popover(isPresented: $showsAppearance) { appearance }
             SkinIconButton(title: "切换皮肤", symbol: "paintpalette") { showsSkins = true }
             if state.selectedBook.source == .weread { SkinIconButton(title: "官方网页阅读", symbol: "globe") { state.showOfficialReader(for: state.selectedBook) } }
         }.padding(.horizontal, 24).padding(.vertical, 22)
+    }
+
+    private var sidebarToggle: some View {
+        SkinIconButton(title: showsSidebar ? "收起侧边栏（⌘⌥S）" : "展开侧边栏（⌘⌥S）", symbol: "sidebar.left", selected: showsSidebar) {
+            toggleSidebar()
+        }
+    }
+
+    private func toggleSidebar() {
+        if !showsSidebar {
+            if layout == .focus && !state.showsWeb { layout = .paged }
+            sidebarVisible = true
+        } else {
+            sidebarVisible = false
+        }
     }
 
     private var readerFooter: some View {
@@ -315,6 +349,48 @@ struct ContentView: View {
         .foregroundStyle(palette.ink).background(palette.paper)
         .environment(\.skinPalette, palette)
     }
+
+    private var readingCandidatesSheet: some View {
+        VStack(alignment: .leading, spacing: 18) {
+            HStack {
+                Text("在书城查找 · \(state.selectedBook.title)").font(.title2).lineLimit(1)
+                Spacer()
+                Button("关闭") { state.showsBookSearch = false }
+            }
+            Text("请核对书名、作者和版本。同名书的正文、划线和阅读位置可能不同；选择后打开该候选的官方阅读链接。").font(.callout).foregroundStyle(palette.muted)
+            if state.searchingBooks { ProgressView("正在查询官方书城…") }
+            else if let error = state.searchError { Text(error).foregroundStyle(.red) }
+            else if state.readingCandidates.isEmpty { Text("这个分类没有返回候选。可关闭后切换“电子书”或“网文小说”再查找。") }
+            else {
+                List(state.readingCandidates) { book in
+                    HStack {
+                        VStack(alignment: .leading) {
+                            Text(book.title)
+                            Text(book.author).font(.caption).foregroundStyle(palette.muted)
+                            if let publisher = book.publisher { Text(publisher).font(.caption).foregroundStyle(palette.muted) }
+                        }
+                        Spacer()
+                        Button("打开此版本") {
+                            state.showsBookSearch = false
+                            state.open(book)
+                        }.disabled(book.readerURL == nil)
+                    }.listRowBackground(palette.paper)
+                }.scrollContentBackground(.hidden)
+            }
+        }.padding(24).frame(width: 650, height: 440)
+            .foregroundStyle(palette.ink).background(palette.paper).environment(\.skinPalette, palette)
+    }
 }
 
 private enum SidebarTab { case shelf, paragraphs }
+
+private struct ToggleReaderSidebarKey: FocusedValueKey {
+    typealias Value = () -> Void
+}
+
+extension FocusedValues {
+    var toggleReaderSidebar: (() -> Void)? {
+        get { self[ToggleReaderSidebarKey.self] }
+        set { self[ToggleReaderSidebarKey.self] = newValue }
+    }
+}

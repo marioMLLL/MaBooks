@@ -9,9 +9,16 @@ final class WebSession: NSObject, ObservableObject, WKNavigationDelegate, WKUIDe
     @Published var error: String?
     @Published var busy = false
     @Published var canGoBack = false
+    @Published var readerUnavailable = false
+    @Published var needsLogin = false
+    @Published var readerNotice: String?
+    private var bookNavigation = UUID()
+    private var expectedReaderURL: URL?
     override init() {
         let config = WKWebViewConfiguration()
         config.websiteDataStore = .default()
+        config.userContentController.addUserScript(WKUserScript(source: WebPageNavigation.script,
+            injectionTime: .atDocumentEnd, forMainFrameOnly: true))
         view = WKWebView(frame: .zero, configuration: config)
         super.init()
         view.navigationDelegate = self; view.uiDelegate = self
@@ -20,7 +27,23 @@ final class WebSession: NSObject, ObservableObject, WKNavigationDelegate, WKUIDe
         guard let url = OfficialReaderURL.validated(url) else { return }
         error = nil; view.load(URLRequest(url: url))
     }
+    func openBook(_ book: Book) {
+        bookNavigation = UUID()
+        readerUnavailable = false; needsLogin = false; readerNotice = nil
+        expectedReaderURL = OfficialReaderURL.validated(book.readerURL)
+        if let url = expectedReaderURL { navigate(url) }
+        else {
+            readerUnavailable = true
+            readerNotice = "这条书架记录没有可用的官方阅读链接。可在书城查找对应书籍，再确认版本打开。"
+            navigate(OfficialReaderURL.home)
+        }
+    }
+    func clearBookContext() {
+        bookNavigation = UUID(); expectedReaderURL = nil
+        readerUnavailable = false; needsLogin = false; readerNotice = nil
+    }
     func reload() { error = nil; view.reload() }
+    func toggleFullScreen() { (view.window ?? NSApplication.shared.mainWindow)?.toggleFullScreen(nil) }
     func clearSession() async {
         view.stopLoading()
         let store = view.configuration.websiteDataStore
@@ -28,7 +51,27 @@ final class WebSession: NSObject, ObservableObject, WKNavigationDelegate, WKUIDe
         navigate(OfficialReaderURL.home)
     }
     func webView(_ webView: WKWebView, didStartProvisionalNavigation navigation: WKNavigation!) { busy = true; error = nil }
-    func webView(_ webView: WKWebView, didFinish navigation: WKNavigation!) { busy = false; canGoBack = webView.canGoBack }
+    func webView(_ webView: WKWebView, didFinish navigation: WKNavigation!) {
+        busy = false; canGoBack = webView.canGoBack
+        guard OfficialReaderURL.validated(webView.url) != nil else { return }
+        let token = bookNavigation
+        // Inspect only UI status flags on the official page, never extract book text or cookies.
+        Task {
+            let script = """
+            (() => ({
+              unavailable: (document.body?.innerText || '').includes('无法打开该书籍'),
+              login: Array.from(document.querySelectorAll('button,a')).some(e => e.textContent.trim() === '登录')
+            }))()
+            """
+            guard let flags = try? await webView.evaluateJavaScript(script) as? [String: Any],
+                  token == bookNavigation else { return }
+            needsLogin = flags["login"] as? Bool ?? false
+            if expectedReaderURL != nil, flags["unavailable"] as? Bool == true {
+                readerUnavailable = true
+                readerNotice = "微信读书拒绝了这条书架阅读链接。可在书城查找对应版本；不要把这条记录当作已下载的正文。"
+            }
+        }
+    }
     func webView(_ webView: WKWebView, didFailProvisionalNavigation navigation: WKNavigation!, withError failure: Error) { failed(failure) }
     func webView(_ webView: WKWebView, didFail navigation: WKNavigation!, withError failure: Error) { failed(failure) }
     private func failed(_ failure: Error) {
@@ -54,6 +97,8 @@ struct OfficialWebView: NSViewRepresentable {
 
 struct WebReader: View {
     @ObservedObject var session: WebSession
+    @ObservedObject var state: AppState
+    let fullScreen: Bool
     var body: some View {
         VStack(spacing: 0) {
             HStack {
@@ -62,10 +107,26 @@ struct WebReader: View {
                 Button { session.reload() } label: { Image(systemName: "arrow.clockwise") }
                 if session.busy { ProgressView().controlSize(.small) }
                 Spacer()
-                Text("微信读书网页版 · 使用网页自身的阅读设置").font(.caption).foregroundStyle(.secondary)
+                Text(state.selectedBook.source == .weread ? state.selectedBook.title : "微信读书").font(.caption).lineLimit(1)
+                    .help("阅读卡片左侧 20% 上一页，右侧 20% 下一页；中间可选字、查看评论")
+                Button { session.toggleFullScreen() } label: { Label(fullScreen ? "退出全屏" : "全屏阅读", systemImage: fullScreen ? "arrow.down.right.and.arrow.up.left" : "arrow.up.left.and.arrow.down.right") }
+                    .help("进入／退出全屏，保留当前皮肤（⌃⌘F）")
                 Button("默认浏览器打开") { NSWorkspace.shared.open(OfficialReaderURL.validated(session.view.url) ?? OfficialReaderURL.home) }
             }.padding(12)
             if let error = session.error { Text(error).foregroundStyle(.red).padding(8) }
+            if state.selectedBook.source == .weread {
+                VStack(alignment: .leading, spacing: 8) {
+                    if let notice = session.readerNotice { Text(notice).font(.callout) }
+                    else if session.needsLogin { Text("网页账号尚未登录。先在官网扫码登录，再点击“重新打开此书”；API Key 不代替网页登录。").font(.callout) }
+                    HStack {
+                        Button("网页登录") { session.navigate(OfficialReaderURL.home) }
+                        Button("重新打开此书") { state.open(state.selectedBook) }
+                        Button("查找电子书") { state.searchReadingCandidates(novels: false) }
+                        Button("查找网文小说") { state.searchReadingCandidates(novels: true) }
+                        Button("划线与想法") { state.showHighlights() }
+                    }
+                }.padding(12)
+            }
             Divider()
             OfficialWebView(session: session)
         }

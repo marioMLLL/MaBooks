@@ -10,6 +10,10 @@ final class AppState: ObservableObject {
     @Published var deletedBooks: [LocalBook] = []
     @Published var libraryBusy = false
     @Published var showsDeletedBooks = false
+    @Published var readingCandidates: [Book] = []
+    @Published var searchingBooks = false
+    @Published var searchError: String?
+    @Published var showsBookSearch = false
     @Published var shelf: [Book] = []
     @Published var selectedBook = SampleLibrary.book
     @Published var paragraphs = SampleLibrary.paragraphs
@@ -37,6 +41,7 @@ final class AppState: ObservableObject {
     private var bookRequest = UUID()
     private var commentRequest = UUID()
     private var shelfRequest = UUID()
+    private var bookSearchRequest = UUID()
     private var commentTask: Task<Void, Never>?
 
     var books: [Book] { [SampleLibrary.book] + localBooks.map(\.book) }
@@ -101,9 +106,26 @@ final class AppState: ObservableObject {
         if book.source != .weread { openLocal(book); return }
         guard let client else { showsSettings = true; return }
         let token = UUID(); bookRequest = token
+        bookSearchRequest = UUID(); showsBookSearch = false; searchingBooks = false
         selectedBook = book; paragraphs = []; resetComments(); page = 0
         pageRanges = []; readingOffset = 0
-        showsWeb = false; loadingBook = true; bookError = nil
+        showsWeb = true; loadingBook = true; bookError = nil
+        web.openBook(book)
+        Task {
+            do {
+                let detail = try await client.fetchBookInfo(bookID: book.id)
+                guard bookRequest == token else { return }
+                if let url = detail.readerURL, url != book.readerURL {
+                    selectedBook = detail
+                    web.openBook(detail)
+                }
+            } catch GatewayError.upgradeRequired {
+                guard bookRequest == token else { return }
+                web.readerNotice = GatewayError.upgradeRequired.localizedDescription
+            } catch {
+                // A failed metadata refresh must not block the supplied official reader URL.
+            }
+        }
         Task {
             do {
                 let result = try await client.fetchHighlights(bookID: book.id)
@@ -122,6 +144,7 @@ final class AppState: ObservableObject {
     }
 
     private func openLocal(_ book: Book) {
+        bookSearchRequest = UUID(); showsBookSearch = false; searchingBooks = false
         bookRequest = UUID(); loadingBook = false; bookError = nil
         selectedBook = book
         paragraphs = book.source == .sample ? SampleLibrary.paragraphs : localBooks.first { $0.book.id == book.id }?.paragraphs ?? []
@@ -202,9 +225,31 @@ final class AppState: ObservableObject {
     }
 
     func showOfficialReader(for book: Book? = nil) {
-        web.navigate(OfficialReaderURL.validated(book?.readerURL) ?? OfficialReaderURL.home)
+        if let book { web.openBook(book) }
+        else { web.clearBookContext(); web.navigate(OfficialReaderURL.home) }
         showsWeb = true
     }
+
+    func searchReadingCandidates(novels: Bool) {
+        guard let client, selectedBook.source == .weread else { showsSettings = true; return }
+        let bookID = selectedBook.id
+        let title = selectedBook.title
+        let token = UUID(); bookSearchRequest = token
+        showsBookSearch = true; searchingBooks = true; searchError = nil; readingCandidates = []
+        Task {
+            do {
+                let results = try await client.searchBooks(title: title, novels: novels)
+                guard bookSearchRequest == token, selectedBook.id == bookID else { return }
+                readingCandidates = results
+            } catch {
+                guard bookSearchRequest == token, selectedBook.id == bookID else { return }
+                searchError = readable(error)
+            }
+            searchingBooks = false
+        }
+    }
+
+    func showHighlights() { showsWeb = false }
 
     func importText() {
         guard !libraryBusy else { return }

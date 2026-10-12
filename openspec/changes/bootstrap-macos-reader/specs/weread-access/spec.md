@@ -35,3 +35,19 @@ The app SHALL provide a persistent WebKit view of the official website and accep
 #### Scenario: Book has no reader link
 - **WHEN** the selected book lacks an official HTTPS readerLink
 - **THEN** the app SHALL offer the official homepage without inventing a book URL
+
+#### Scenario: Read a shelf entry
+- **WHEN** a user selects a WeRead shelf book
+- **THEN** the app SHALL open its official reader inside the app, refresh metadata using the official book info endpoint, and keep highlights available through an explicit control
+
+#### Scenario: Recover an unavailable reader link
+- **WHEN** the official reader reports that the book cannot be opened
+- **THEN** the app SHALL offer official ebook and web-novel catalog searches, show candidate title and author for user confirmation, and open only a returned official reader link without silently choosing a different edition
+
+#### Scenario: Read the official webpage in full screen
+- **WHEN** the user activates full-screen reading using its button or Control-Command-F
+- **THEN** the app SHALL enter native window full screen, retain the current skin, decorations, sidebar, toolbars and rounded reading card consistently with local-document reading, preserve the existing web session and page, and provide an exit control
+
+#### Scenario: Turn pages by clicking reading-card edges
+- **WHEN** the user single-clicks the left or right 20 percent of a reading card containing visible official previous/next page controls
+- **THEN** the app SHALL activate the respective enabled official control without extracting book text or guessing a page URL, while retaining selection, drag, double-click, link and input interactions and leaving non-reader pages unchanged
