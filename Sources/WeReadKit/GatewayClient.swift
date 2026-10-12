@@ -65,7 +65,14 @@ public final class GatewayClient: @unchecked Sendable {
     }
 
     public func fetchHighlights(bookID: String) async throws -> [Paragraph] {
-        let payload = try await request("/book/bestbookmarks", parameters: ["bookId": bookID, "chapterUid": 0])
+        let payload = try await request("/book/bestbookmarks", parameters: ["bookId": bookID, "chapterUid": 0, "synckey": 0])
+        // The live Gateway omits items for empty results and can return only synckey.
+        // Keep malformed arrays and missing lists with a positive count as errors.
+        if payload["items"] == nil || payload["items"] is NSNull {
+            let count = integer(payload["totalCount"])
+            if count == 0 || (payload["totalCount"] == nil && integer(payload["synckey"]) != nil) { return [] }
+            throw GatewayError.malformed
+        }
         guard let rows = payload["items"] as? [[String: Any]] else { throw GatewayError.malformed }
         let chapters = payload["chapters"] as? [[String: Any]] ?? []
         var titles: [Int: String] = [:]

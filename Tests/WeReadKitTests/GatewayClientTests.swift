@@ -63,6 +63,7 @@ struct GatewayClientTests {
             let payload = try body(request)
             #expect(payload["bookId"] as? String == "42")
             #expect(payload["chapterUid"] as? Int == 0)
+            #expect(payload["synckey"] as? Int == 0)
             return (200, #"{"items":[{"chapterUid":7,"range":"393-401","markText":"原文","totalCount":123},{"chapterUid":8,"range":"393-401","markText":"另一章"}],"chapters":[{"chapterUid":7,"title":"第七章"}]}"#)
         }
         let highlights = try await client.fetchHighlights(bookID: "42")
@@ -70,6 +71,42 @@ struct GatewayClientTests {
         #expect(highlights[0].chapterTitle == "第七章")
         #expect(highlights[0].highlightCount == 123)
         #expect(highlights[0].id != highlights[1].id)
+    }
+
+    @Test(arguments: [
+        #"{"synckey":123}"#,
+        #"{"synckey":123,"items":null}"#,
+        #"{"totalCount":0}"#,
+        #"{"synckey":123,"totalCount":0,"items":null}"#,
+        #"{"items":[]}"#,
+        #"{"errcode":0,"data":{"synckey":123}}"#
+    ])
+    func emptyHighlightsCanOmitTheItemsArray(_ json: String) async throws {
+        let client = makeClient { request in
+            let payload = try body(request)
+            #expect(payload["api_name"] as? String == "/book/bestbookmarks")
+            #expect(payload["synckey"] as? Int == 0)
+            return (200, json)
+        }
+        #expect(try await client.fetchHighlights(bookID: "fixture-book").isEmpty)
+    }
+
+    @Test(arguments: [
+        #"{}"#,
+        #"{"unexpected":[]}"#,
+        #"{"synckey":123,"totalCount":2}"#,
+        #"{"synckey":123,"items":{}}"#,
+        #"{"items":null}"#,
+        #"{"items":[{"chapterUid":7,"markText":"合成摘录","range":""}]}"#
+    ])
+    func invalidHighlightsAreNotSilentlyTreatedAsEmpty(_ json: String) async throws {
+        let client = makeClient { _ in (200, json) }
+        do {
+            _ = try await client.fetchHighlights(bookID: "fixture-book")
+            Issue.record("Expected malformed response")
+        } catch GatewayError.malformed {} catch {
+            Issue.record("Unexpected error: \(error)")
+        }
     }
 
     @Test func commentsUseSelectedRangeAndServerPagingCursor() async throws {

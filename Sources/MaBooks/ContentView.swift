@@ -161,7 +161,16 @@ struct ContentView: View {
                 ContentUnavailableView { Label("暂时无法读取", systemImage: "wifi.exclamationmark") }
                     description: { Text(error) } actions: { Button("重试") { state.open(state.selectedBook) } }
             } else if state.paragraphs.isEmpty {
-                ContentUnavailableView("暂无热门划线", systemImage: "text.quote", description: Text("可以通过微信读书网页版继续阅读。"))
+                ContentUnavailableView {
+                    Label("暂无热门划线", systemImage: "text.quote")
+                } description: {
+                    Text("微信读书暂未返回这本书的热门划线。\n点击“阅读全文”，通过官方网页版继续阅读。")
+                } actions: {
+                    Button("阅读全文", systemImage: "globe") {
+                        state.showOfficialReader(for: state.selectedBook)
+                    }
+                    .buttonStyle(.borderedProminent)
+                }
             } else {
                 ScrollViewReader { proxy in
                     ScrollView {
