@@ -106,11 +106,15 @@ MaBooks 是独立开源项目，与腾讯无隶属关系。在线能力使用腾
 <a id="install"></a>
 ## 🍎 安装运行：让猫搬进你的 Mac
 
-### 使用 GitHub 构建产物
+### 下载最新版安装包
+
+前往 [最新 Release](https://github.com/marioMLLL/MaBooks/releases/latest)，在 **Assets** 中下载 `MaBooks-版本号-macOS-arm64.dmg`，打开后将 MaBooks 拖入 Applications；也可下载 ZIP，解压得到 `MaBooks.app`。更新前先退出旧版，再打开新安装的应用。🐾
+
+### 使用 GitHub 测试构建
 
 前往 [Actions](https://github.com/marioMLLL/MaBooks/actions/workflows/macos.yml)，打开一次成功的 `macOS` 构建，在 **Artifacts** 中下载 `MaBooks-arm64`。解压下载包中的 `MaBooks.zip`，即可得到 `MaBooks.app`。
 
-当前 CI 附件面向 Apple Silicon Mac；Intel Mac 可以在本机从源码构建。构建产物采用本地 ad-hoc 签名，尚未经过 Apple 公证，正式签名发行版仍在后续计划中。
+当前 Release 和 CI 附件面向 Apple Silicon Mac；Intel Mac 可以在本机从源码构建。构建产物采用本地 ad-hoc 签名，尚未经过 Apple 公证，正式签名发行版仍在后续计划中。
 
 ### 从源码运行
 
