@@ -15,4 +15,4 @@
 ## 4. Delivery
 - [x] 4.1 Verify meaningful Core and Gateway fixtures and compile app
 - [x] 4.2 Package local app and document manual acceptance / future iterations
-- [ ] 4.3 Create public GitHub repository and publish scaffold with CI
+- [x] 4.3 Create public GitHub repository and publish scaffold with CI
