@@ -33,8 +33,15 @@ struct MaBooksApp: App {
     }
 
     private static var applicationIcon: NSImage? {
+        if let iconFile = Bundle.main.object(forInfoDictionaryKey: "CFBundleIconFile") as? String,
+           let resources = Bundle.main.resourceURL,
+           let icon = NSImage(contentsOf: resources.appendingPathComponent(iconFile)) { return icon }
         if let url = Bundle.main.url(forResource: "MaBooks", withExtension: "icns"),
            let icon = NSImage(contentsOf: url) { return icon }
+        if let resources = Bundle.main.resourceURL,
+           let icon = NSImage(contentsOf: resources.appendingPathComponent("MaBooks_MaBooks.bundle/AppIcon.png")) {
+            return icon
+        }
         return NSImage(contentsOf: Bundle.module.bundleURL.appendingPathComponent("AppIcon.png"))
     }
 }

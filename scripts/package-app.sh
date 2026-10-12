@@ -13,7 +13,10 @@ done
 test -s "$task_app_dir/Contents/Resources/MaBooks_MaBooks.bundle/sakura-reading.png"
 cp packaging/Info.plist "$task_app_dir/Contents/Info.plist"
 bash scripts/make-icon.sh
-cp dist/MaBooks.icns "$task_app_dir/Contents/Resources/MaBooks.icns"
+task_icon_digest="$(shasum -a 256 Sources/MaBooks/Resources/AppIcon.png | cut -c1-12)"
+task_icon_file="MaBooks-${task_icon_digest}.icns"
+cp dist/MaBooks.icns "$task_app_dir/Contents/Resources/$task_icon_file"
+/usr/libexec/PlistBuddy -c "Set :CFBundleIconFile $task_icon_file" "$task_app_dir/Contents/Info.plist"
 codesign --force --sign - "$task_app_dir"
 codesign --verify --deep --strict "$task_app_dir"
 echo "Built: $task_app_dir"

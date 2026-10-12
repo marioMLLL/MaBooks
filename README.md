@@ -91,7 +91,7 @@ API Key 请留在应用和钥匙串里。它不用参加 Git 提交，也不用�
 
 ### 当前版本能读到哪里？
 
-当前版本为 **0.2.1**。官方 Gateway 的书架、热门划线和评论适配已实现，真实账号回包与网页登录联调仍按 [验收清单](docs/ACCEPTANCE.md) 推进。
+当前版本为 **0.2.2**。官方 Gateway 的书架、热门划线和评论适配已实现，真实账号回包与网页登录联调仍按 [验收清单](docs/ACCEPTANCE.md) 推进。
 
 - 原生微信读书内容区展示**热门划线摘录**，接口最多返回 20 条；全文通过官方网页版阅读。
 - 微信读书书架目前显示**电子书**；有声书和文章收藏暂未接入。
@@ -102,6 +102,10 @@ MaBooks 是独立开源项目，与腾讯无隶属关系。在线能力使用腾
 
 <a id="install"></a>
 ## 🍎 安装运行：让猫搬进你的 Mac
+
+### 下载 macOS 安装包
+
+前往 [GitHub Releases](https://github.com/marioMLLL/MaBooks/releases/latest)，下载最新 DMG 或 ZIP。DMG 打开后将 MaBooks 拖入 Applications；ZIP 解压后将 MaBooks.app 放入 Applications。支持 M 系列 Mac、macOS 14+，当前版本尚未经过 Apple 公证。
 
 ### 使用 GitHub 构建产物
 
