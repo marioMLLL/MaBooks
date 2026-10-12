@@ -1,17 +1,22 @@
 # MaBooks 图标
 
-使用用户提供的“猫咪 + 打开的书 + 蓝色评论气泡”图片作为图标。保留圆角奶油色底板，只移除底板外围的白色背景和留边，四角透明。
+当前使用用户更新的图标：睁着绿色眼睛的奶油色猫咪、打开的书和蓝色评论气泡。源文件为 `Sources/MaBooks/Resources/AppIcon.png`，README 和应用打包共用这一个文件。
 
-源图：`Sources/MaBooks/Resources/AppIcon.png`。
+采用 GitHub 提交 `576524c` 中的最新裁剪图标，保留原图细节、奶油色圆角底板和透明四角。此次同步不重新绘制，旧版图标的抠图记录不再描述当前素材。
 
-编辑工具：内置 image_gen，采用透明背景抠图并清理边缘。没有使用 Python 重绘或去除背景。
+## 更新方式
 
-最终编辑提示词：
+替换源 PNG 后运行 `bash scripts/package-app.sh`。其中 `scripts/make-icon.sh` 使用 macOS 原生工具生成 16、32、128、256、512 像素以及对应 @2x 尺寸，转换为 `dist/MaBooks.icns`。
 
-> Use case: background-extraction. Precisely clean the alpha mask of the supplied already-extracted app icon. Keep every pixel of the cat, book, blue speech bubble and cream rounded-square tile appearance unchanged. The current transparent perimeter contains scattered white flecks and irregular white remnants OUTSIDE the rounded-square tile; remove ALL of those remnants. The output must contain one single clean smooth rounded-square icon tile on genuine transparent alpha, with perfectly empty transparent space outside the tile. No loose white pixels, no jagged rim, no halo, no speckles, no stray islands. Tight square bounding canvas around the tile: its top, bottom, left and right straight segments reach the edges, with fully transparent corners. Preserve original rounded-square curvature; do not add a new outline or shadow and do not redraw the subject. Keep original warm ivory colors, original cat and book and original blue bubble. This is only transparent-edge cleanup and tight crop.
+应用包包含两份用途不同的资源：
 
-`scripts/make-icon.sh` 使用 macOS 原生工具生成标准 `.iconset` 中的 16、32、128、256、512 像素以及对应 @2x 尺寸，再转换为 `dist/MaBooks.icns`。`scripts/package-app.sh` 将其放入应用的 Contents/Resources，Info.plist 的 CFBundleIconFile 指向该文件。
+- `Contents/Resources/MaBooks-<图标内容摘要>.icns`：Info.plist 的 `CFBundleIconFile` 指向此文件，用于系统应用图标。内容变化时文件名同步变化，避免系统复用旧图标缓存。
+- `Contents/Resources/MaBooks_MaBooks.bundle/AppIcon.png`：SwiftPM 资源，与仓库源 PNG 保持一致。
 
-启动时显式设置 applicationIconImage，确保本地重新打包后 Dock 使用新图标；源码运行时从 SwiftPM 的图标 PNG 加载。
+启动时显式设置 `applicationIconImage`，“关于 MaBooks”面板也显式使用同一份资源，避免默认关于面板显示系统缓存的旧图标。打包运行时按 Info.plist 加载 ICNS，源码运行时加载 PNG。更新后退出已运行的 MaBooks，再打开新的应用包，避免进程继续显示启动时加载的旧图标。
 
-2026-10-12 验证：源 PNG 四角 alpha 为 0；ICNS 可被 NSImage 加载，包含 10 个尺寸表示。已检查浅色／深色背景上的透明边缘，并在打包后的系统“关于 MaBooks”面板中实际看到新图标及版本 0.2.1。14 项回归测试、release 打包和签名校验通过。
+本次图标更新版本为 **0.2.2（4）**，可通过“MaBooks → 关于 MaBooks”确认打开的是新版应用。
+
+2026-10-12 验证：打包后的 PNG 与仓库源文件一致；14 项回归测试、release 打包和签名校验通过。重新启动应用后，实际关于面板显示睁眼猫咪及版本 0.2.2（4），深色背景下没有外围白色方块。
+
+![MaBooks 0.2.2 的实际关于面板与更新后的图标](screenshots/about-icon.png)

@@ -19,6 +19,15 @@ struct MaBooksApp: App {
         .defaultSize(width: 1280, height: 820)
         .windowStyle(.hiddenTitleBar)
         .commands {
+            CommandGroup(replacing: .appInfo) {
+                Button("关于 MaBooks") {
+                    var options: [NSApplication.AboutPanelOptionKey: Any] = [:]
+                    if let icon = Self.applicationIcon {
+                        options[.applicationIcon] = icon
+                    }
+                    NSApplication.shared.orderFrontStandardAboutPanel(options: options)
+                }
+            }
             CommandGroup(replacing: .newItem) {
                 Button("导入 TXT…") { state.importText() }.keyboardShortcut("o")
             }
@@ -33,7 +42,8 @@ struct MaBooksApp: App {
     }
 
     private static var applicationIcon: NSImage? {
-        if let url = Bundle.main.url(forResource: "MaBooks", withExtension: "icns"),
+        if let iconFile = Bundle.main.object(forInfoDictionaryKey: "CFBundleIconFile") as? String,
+           let url = Bundle.main.url(forResource: iconFile, withExtension: nil),
            let icon = NSImage(contentsOf: url) { return icon }
         return NSImage(contentsOf: Bundle.module.bundleURL.appendingPathComponent("AppIcon.png"))
     }

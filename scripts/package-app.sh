@@ -13,7 +13,12 @@ done
 test -s "$task_app_dir/Contents/Resources/MaBooks_MaBooks.bundle/sakura-reading.png"
 cp packaging/Info.plist "$task_app_dir/Contents/Info.plist"
 bash scripts/make-icon.sh
-cp dist/MaBooks.icns "$task_app_dir/Contents/Resources/MaBooks.icns"
+# A content-specific filename prevents macOS from reusing the previous icon.
+task_icon_digest="$(shasum -a 256 Sources/MaBooks/Resources/AppIcon.png | cut -c 1-12)"
+task_icon_name="MaBooks-${task_icon_digest}.icns"
+rm -f "$task_app_dir/Contents/Resources/"MaBooks*.icns
+cp dist/MaBooks.icns "$task_app_dir/Contents/Resources/$task_icon_name"
+/usr/libexec/PlistBuddy -c "Set :CFBundleIconFile $task_icon_name" "$task_app_dir/Contents/Info.plist"
 codesign --force --sign - "$task_app_dir"
 codesign --verify --deep --strict "$task_app_dir"
 echo "Built: $task_app_dir"
